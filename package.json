@@ -1,0 +1,11 @@
+{
+  "name": "pipe-plugin",
+  "private": true,
+  "type": "module",
+  "description": "Tests of the pipe plugin's scripts and hooks. The plugin itself needs only Node.js and git.",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "check": "node --test test/*.test.mjs && claude plugin validate ."
+  }
+}

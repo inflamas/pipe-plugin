@@ -1,0 +1,12 @@
+{
+  "name": "pipe-plugin",
+  "description": "The pipe plugin: a shared AI delivery pipeline for any repository.",
+  "owner": { "name": "inflamas" },
+  "plugins": [
+    {
+      "name": "pipe",
+      "source": "./",
+      "description": "Roadmap and setup interviews, then spec, spec review, build, read-only code review, learn and improve, with every gate in a person's hands."
+    }
+  ]
+}
