@@ -90,6 +90,13 @@ test("a story from the roadmap to a recorded review", () => {
   assert.match(asks, /"branch":"spec\/01"/);
 });
 
+test("changedPaths keeps the first character of an unstaged first line", async () => {
+  const { changedPaths } = await import("../lib/common.mjs");
+  writeFileSync(join(repo, "README.md"), "# Changed\n");
+  assert.deepEqual(changedPaths(repo), ["README.md"]);
+  sh("git checkout -- README.md");
+});
+
 test("review-dev: only the reviewer's captured report becomes review.md", () => {
   const wt = join(repo, ".worktrees/dev/01");
   sh("git branch dev/01 main && git worktree add -q .worktrees/dev/01 dev/01");

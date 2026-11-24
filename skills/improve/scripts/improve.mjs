@@ -11,6 +11,7 @@
 import { join } from "node:path";
 import {
   appendJsonl,
+  changedPaths,
   askStrings,
   ensureWorktree,
   event,
@@ -117,7 +118,7 @@ const verify = (nr) => {
     ? [
         ...new Set([
           ...lines(gitOut(wt, "diff", "--name-only", base, "HEAD")),
-          ...lines(gitOut(wt, "status", "--porcelain", "--untracked-files=all")).map((l) => l.slice(3)),
+          ...changedPaths(wt),
         ]),
       ]
     : [];

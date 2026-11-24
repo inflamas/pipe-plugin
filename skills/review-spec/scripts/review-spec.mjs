@@ -452,7 +452,9 @@ const loadFindings = (root, nr) => {
 const verifyIn = (root, nr) => {
   const branch = gitOut(root, "branch", "--show-current") ?? "";
   if (branch !== `spec/${nr}`) return [`verify runs on spec/${nr}, but this worktree is on "${branch}".`];
-  const problems = verifyChangedPaths(nr, changedPaths(root));
+  const paths = changedPaths(root);
+  const committed = paths.length === 0 && show(root, "HEAD", `specs/${nr}/spec-review.md`) !== undefined;
+  const problems = committed ? [] : verifyChangedPaths(nr, paths);
   const revision = revisionOf(root, nr);
   if (!revision) return [...problems, `spec/${nr} has no committed spec.md.`];
   const review = readText(join(root, `specs/${nr}/spec-review.md`));

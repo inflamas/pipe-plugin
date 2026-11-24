@@ -17,6 +17,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
   appendJsonl,
+  changedPaths,
   branchExists,
   ensureWorktree,
   event,
@@ -229,7 +230,7 @@ const verify = (nr) => {
   else {
     const changed = new Set([
       ...lines(gitOut(wt, "diff", "--name-only", base, "HEAD")),
-      ...lines(gitOut(wt, "status", "--porcelain", "--untracked-files=all")).map((l) => l.slice(3)),
+      ...changedPaths(wt),
     ]);
     problems.push(...checkScope(nr, [...changed]));
   }
