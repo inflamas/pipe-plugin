@@ -1,6 +1,6 @@
 ---
 name: improve
-description: After a person merged learn/{nr}, ask them about each proposal of specs/{nr}/retro.md with AskUserQuestion and apply only what they decide, on improve/{nr} in its own worktree, recorded in specs/{nr}/improve.md. Proposals for the pipe plugin itself are written down for its maintainers, not applied. Never decides for the person. Use for /pipe:improve 01.
+description: After a person merged learn/{nr}, ask them about each proposal of specs/{nr}/retro.md with AskUserQuestion and apply only what they decide, on improve/{nr} in its own worktree, recorded in specs/{nr}/improve.md, then push improve/{nr} and open its pull request. Proposals for the pipe plugin itself are written down for its maintainers, not applied. Never decides for the person. Use for /pipe:improve 01.
 argument-hint: "{nr}"
 disable-model-invocation: true
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/improve.mjs" *)
@@ -8,7 +8,7 @@ allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/improve.mjs" *)
 
 # /pipe:improve $ARGUMENTS
 
-`/pipe:learn` proposed; you ask, and the person decides. For every proposal in `specs/{nr}/retro.md` you ask once, apply exactly what the person decided, and record each question and answer word for word in `specs/{nr}/improve.md` on `improve/{nr}`. The person's merge of `improve/{nr}` is the approval. You never apply a proposal nobody accepted, and you never change one beyond what the person said.
+`/pipe:learn` proposed; you ask, and the person decides. For every proposal in `specs/{nr}/retro.md` you ask once, apply exactly what the person decided, and record each question and answer word for word in `specs/{nr}/improve.md` on `improve/{nr}`. You push `improve/{nr}` and open its pull request last; the person's merge of it is the approval. You never apply a proposal nobody accepted, and you never change one beyond what the person said.
 
 ## 1. Start: always first
 
@@ -80,9 +80,17 @@ node "${CLAUDE_SKILL_DIR}/scripts/improve.mjs" verify $ARGUMENTS
 
 It must print `verify: ok`: every proposal has a decision, every question and answer is word for word from a logged AskUserQuestion call, every changed file is named by an applied decision, and no spec or story record changed. Then commit everything that changed together, with a message such as `Improve {nr}: {k} of {n} proposals applied`, and run `verify` once more.
 
+Last, push `improve/{nr}` and open its pull request:
+
+```bash
+node "${CLAUDE_SKILL_DIR}/scripts/improve.mjs" publish $ARGUMENTS
+```
+
+It pushes nothing unless everything is committed and `verify` passes. Then it pushes `improve/{nr}` to origin and opens its pull request, titled "Improve {nr}: {story title}" (or reuses the open one after pushing again). If the push or `gh` fails (no remote, no login, no network), it prints one line with the exact command for a person to run and exits 0: relay that line, don't retry, and end the run normally.
+
 ## 6. Limits and done
 
-- Never merge and never push: the person's merge of `improve/{nr}` is the approval.
+- Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. Push only through `publish`, only `improve/{nr}`: the person's merge of its pull request is the approval.
 - Never apply what the person did not accept, and never change a plugin file from here.
 
-Close with: the commit hash on `improve/{nr}`, each proposal with its decision in one line, and that merging `improve/{nr}` makes the changes part of the pipeline.
+Close with: the commit hash on `improve/{nr}`, the pull request's URL (or the command `publish` printed for a person to run), each proposal with its decision in one line, and that merging the pull request of `improve/{nr}` makes the changes part of the pipeline.

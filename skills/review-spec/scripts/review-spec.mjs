@@ -11,6 +11,10 @@
 //     and well formed, plus the items that go under "Needs you". Exit 1 with the problems otherwise.
 //   node review-spec.mjs verify <nr>
 //     The pre-commit gate for spec-review.md. Exit 0: the commit may go ahead. Exit 1: the problems.
+//   node review-spec.mjs publish <nr>
+//     The last step, in the worktree, once spec-review.md is committed and verify passes: pushes
+//     spec/{nr} to origin and opens its pull request (or reuses the open one). A person merges it.
+//     A push or gh that fails is one line with the command for a person; exit 0 either way.
 //   node review-spec.mjs hook
 //     The plugin's hook entry (hooks/hooks.json), active in every session. While a review of the
 //     current revision is in progress in a spec worktree:
@@ -35,6 +39,7 @@ import {
   git,
   gitOut,
   isMain,
+  mainRoot,
   normalize,
   parseNr,
   readAsks,
@@ -50,11 +55,14 @@ import {
   stateDir,
   stop,
   storyIn,
+  storyTitle,
+  trunkOf,
   unquote,
   words,
   worktreePath,
   worktrees,
 } from "../../../lib/common.mjs";
+import { publish } from "../../../lib/publish.mjs";
 
 export const FINDINGS_LINE = (nr) => `Findings to address: run /pipe:spec ${nr} --address-findings.`;
 export const REVIEWER = "pipe:spec-reviewer";
@@ -525,6 +533,41 @@ const findings = (argv) => {
   console.log(items.domain.length === 0 ? "none" : items.domain.map((l) => `- ${l}`).join("\n"));
 };
 
+/** Pushes spec/{nr} and opens its pull request, once the review record is committed and verified. */
+const publishSpec = (argv) => {
+  const args = parseArgs(argv);
+  if ("error" in args) stop(args.error);
+  const { nr } = args;
+  const root = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const rPath = `specs/${nr}/spec-review.md`;
+  const problems = verifyIn(root, nr);
+  if (changedPaths(root).length > 0) problems.push("the worktree has uncommitted changes: commit spec-review.md first.");
+  else if (show(root, "HEAD", rPath) === undefined) problems.push(`${rPath} is not committed yet.`);
+  if (problems.length > 0) {
+    console.log(`publish: nothing pushed, the review is not done:\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
+  const review = readText(join(root, rPath)) ?? "";
+  const title = storyTitle(readText(join(root, "specs/roadmap.md")), nr);
+  const findingsLeft = review.includes(FINDINGS_LINE(nr));
+  const result = publish({
+    wt: root,
+    nr,
+    step: "review-spec",
+    branch: `spec/${nr}`,
+    trunk: trunkOf(mainRoot(root) ?? root),
+    title: `Spec ${nr}: ${title ?? `story ${nr}`}`,
+    body: [
+      `Read specs/${nr}/spec.md (the contract once merged), then specs/${nr}/spec-review.md (the review and your answers) and specs/${nr}/brainstorm.md.`,
+      findingsLeft ? `The review lists findings to address: run /pipe:spec ${nr} --address-findings before you merge.` : "",
+      "Merging is the approval; to reject, add \"## Gate feedback\" to the spec.",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  });
+  console.log(result.lines.join("\n"));
+};
+
 // ---------------------------------------------------------------- hooks
 
 const blockWith = (reason) => {
@@ -599,6 +642,7 @@ if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);
   if (command === "start") start(rest);
   else if (command === "findings") findings(rest);
+  else if (command === "publish") publishSpec(rest);
   else if (command === "verify") {
     const args = parseArgs(rest);
     if ("error" in args) stop(args.error);
@@ -617,7 +661,7 @@ if (isMain(import.meta.url)) {
     }
     process.exit(0);
   } else {
-    console.log("Usage: node review-spec.mjs start <nr> | findings <nr> | verify <nr> | hook");
+    console.log("Usage: node review-spec.mjs start <nr> | findings <nr> | verify <nr> | publish <nr> | hook");
     process.exit(64);
   }
 }

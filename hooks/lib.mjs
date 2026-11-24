@@ -29,21 +29,93 @@ export const toplevelOf = (dir) => gitOut(existingDir(dir), "rev-parse", "--show
  * characters < > | ; & blanked (there they are text, never a redirect or a separator). The words
  * themselves stay, so a quoted path is still seen.
  */
-export const maskShell = (command) => {
-  const withoutBodies = [];
+export const maskShell = (command) =>
+  dropHeredocBodies(command).replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, (q) => q.replace(/[<>|;&]/g, " "));
+
+/** The command without the bodies of its heredocs: they are data, never a command. */
+export const dropHeredocBodies = (command) => {
+  const kept = [];
   let end;
   for (const line of command.split("\n")) {
     if (end !== undefined) {
       if (line.trim() === end) end = undefined;
       continue;
     }
-    withoutBodies.push(line);
+    kept.push(line);
     const h = line.match(/<<-?\s*(['"]?)([A-Za-z_][\w]*)\1/);
     if (h) end = h[2];
   }
-  return withoutBodies
-    .join("\n")
-    .replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, (q) => q.replace(/[<>|;&]/g, " "));
+  return kept.join("\n");
+};
+
+/**
+ * The simple commands of a command line, each as its words, the way the shell splits them: quotes
+ * removed, backslash escapes applied, redirections and their targets dropped, heredoc bodies and
+ * comments dropped. Separators: ; & && | || newline ( ). A word that holds a command substitution
+ * keeps it as text, so `echo $(git push)` stays one command whose first word is "echo".
+ */
+export const shellSegments = (command) => {
+  const text = dropHeredocBodies(command);
+  const segments = [];
+  let words = [];
+  let word = "";
+  let inWord = false;
+  let dropNext = false;
+  const endWord = () => {
+    if (inWord) {
+      if (dropNext) dropNext = false;
+      else words.push(word);
+    }
+    word = "";
+    inWord = false;
+  };
+  const endSegment = () => {
+    endWord();
+    if (words.length > 0) segments.push(words);
+    words = [];
+  };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (c === "'") {
+      const close = text.indexOf("'", i + 1);
+      const to = close < 0 ? text.length : close;
+      word += text.slice(i + 1, to);
+      inWord = true;
+      i = to;
+    } else if (c === '"') {
+      inWord = true;
+      for (i++; i < text.length && text[i] !== '"'; i++) {
+        if (text[i] === "\\" && '"\\$`\n'.includes(text[i + 1] ?? "")) i++;
+        word += text[i];
+      }
+    } else if (c === "\\") {
+      if (text[i + 1] === "\n") i++;
+      else if (i + 1 < text.length) {
+        word += text[++i];
+        inWord = true;
+      }
+    } else if (c === "#" && !inWord) {
+      while (i + 1 < text.length && text[i + 1] !== "\n") i++;
+    } else if (c === ">" || c === "<" || (c === "&" && text[i + 1] === ">")) {
+      // A redirection: a file descriptor number before it belongs to it, and the next word is its target.
+      if (inWord && /^\d+$/.test(word)) {
+        word = "";
+        inWord = false;
+      } else endWord();
+      while (i + 1 < text.length && "<>&|".includes(text[i + 1])) i++;
+      if (text.slice(i - 1, i + 1) === "<<" && text[i + 1] === "-") i++;
+      dropNext = true;
+    } else if (c === ";" || c === "\n" || c === "&" || c === "|" || c === "(" || c === ")") {
+      endSegment();
+    } else if (c === " " || c === "\t") {
+      endWord();
+    } else {
+      word += c;
+      inWord = true;
+    }
+  }
+  endSegment();
+  return segments;
 };
 
 /** The story a branch belongs to: "dev/01" → "01". */

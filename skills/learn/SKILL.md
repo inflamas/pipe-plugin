@@ -1,6 +1,6 @@
 ---
 name: learn
-description: Run the learning checkpoint (retro) of one roadmap story after a person merged dev/{nr} into the trunk. Reads every file of the run and the merged commits, proposes one change per lesson with step, exact change and evidence, asks the user what they noticed, commits specs/{nr}/retro.md on learn/{nr} in its own worktree, and removes the worktrees whose branch is merged. Never applies a change: /pipe:improve does, after asking. Use for /pipe:learn 01.
+description: Run the learning checkpoint (retro) of one roadmap story after a person merged dev/{nr} into the trunk. Reads every file of the run and the merged commits, proposes one change per lesson with step, exact change and evidence, asks the user what they noticed, commits specs/{nr}/retro.md on learn/{nr} in its own worktree, pushes learn/{nr} and opens its pull request, and removes the worktrees whose branch is merged. Never applies a change: /pipe:improve does, after asking. Use for /pipe:learn 01.
 argument-hint: "{nr}"
 disable-model-invocation: true
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/learn.mjs" *)
@@ -8,7 +8,7 @@ allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/learn.mjs" *)
 
 # /pipe:learn $ARGUMENTS
 
-You run the learning checkpoint of story $ARGUMENTS, right after a person merged `dev/{nr}` into the trunk: accepted locally, nothing released. You find what went wrong or needed a human correction, and propose where the pipeline or its harness should change. You propose; you never apply. The only file you write is `specs/{nr}/retro.md`, committed on `learn/{nr}`. The person's merge of `learn/{nr}` is the approval of the retro; `/pipe:improve {nr}` then asks which proposals to apply.
+You run the learning checkpoint of story $ARGUMENTS, right after a person merged `dev/{nr}` into the trunk: accepted locally, nothing released. You find what went wrong or needed a human correction, and propose where the pipeline or its harness should change. You propose; you never apply. The only file you write is `specs/{nr}/retro.md`, committed on `learn/{nr}`. You push `learn/{nr}` and open its pull request last; the person's merge of it is the approval of the retro; `/pipe:improve {nr}` then asks which proposals to apply.
 
 The script `${CLAUDE_SKILL_DIR}/scripts/learn.mjs` does the deterministic parts: the gate, the worktree, the merge commit, the cleanup and the check of retro.md. The plugin's hooks also apply. Never work around a block. Fix what it names. If you can't, stop and say so.
 
@@ -111,19 +111,27 @@ git commit -m "Retro {nr}: {how many} proposal(s), nothing applied"
 
 Then run `verify` once more: it must print `verify: ok (retro.md committed at …)`.
 
+Last, push `learn/{nr}` and open its pull request:
+
+```bash
+node "${CLAUDE_SKILL_DIR}/scripts/learn.mjs" publish $ARGUMENTS
+```
+
+It pushes nothing unless retro.md is committed and `verify` passes. Then it pushes `learn/{nr}` to origin and opens its pull request, titled "Retro {nr}: {story title}" (or reuses the open one after pushing again). If the push or `gh` fails (no remote, no login, no network), it prints one line with the exact command for a person to run and exits 0: relay that line, don't retry, and end the run normally.
+
 ## 8. Limits
 
 - Never apply a change: no edit to a skill, hook, script, guideline, AGENTS.md, spec, code or `.gitignore`. Proposals only.
 - Write and commit only `specs/{nr}/retro.md`, only on `learn/{nr}`, never on the trunk. Never `git add` anything else.
-- Never merge and never push: the person's merge of `learn/{nr}` is the approval.
+- Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. Push only through `publish`, only `learn/{nr}`: the person's merge of its pull request is the approval.
 - Never `git worktree remove --force`, and never delete files to unblock a removal.
 
 ## 9. Done: your closing message
 
-Done means the user answered (or "Not asked: headless run" is recorded), retro.md is committed on `learn/{nr}` and `verify` printed `ok` after the commit, and every merged worktree is removed or named in "## Cleanup".
+Done means the user answered (or "Not asked: headless run" is recorded), retro.md is committed on `learn/{nr}` and `verify` printed `ok` after the commit, `publish` ran, and every merged worktree is removed or named in "## Cleanup".
 
 Your closing message holds:
 
-1. The retro's commit hash on `learn/{nr}`.
+1. The retro's commit hash on `learn/{nr}`, and the pull request's URL (or the command `publish` printed for a person to run).
 2. The worktrees removed, and each one kept with the files that block it.
-3. That story {nr} is merged locally and not released, that `learn/{nr}` reaches the trunk when the user merges it, and that `/pipe:improve {nr}` then asks which proposals to apply.
+3. That story {nr} is merged locally and not released, that `learn/{nr}` reaches the trunk when the user merges its pull request, and that `/pipe:improve {nr}` then asks which proposals to apply.

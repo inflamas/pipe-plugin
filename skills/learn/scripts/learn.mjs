@@ -13,6 +13,10 @@
 //   node learn.mjs verify <nr>
 //     Run in the learn worktree before and after committing retro.md. Exit 0 "verify: ok ...",
 //     exit 1 with the problems.
+//   node learn.mjs publish <nr>
+//     The last step, once retro.md is committed and verify passes: pushes learn/{nr} to origin and
+//     opens its pull request (or reuses the open one). A person merges it. A push or gh that fails
+//     is one line with the command for a person; exit 0 either way.
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -32,12 +36,14 @@ import {
   repoOrStop,
   stateDir,
   stop,
+  storyTitle,
   trunkOf,
   WORKTREES,
   words,
   worktreePath,
   worktrees,
 } from "../../../lib/common.mjs";
+import { publish } from "../../../lib/publish.mjs";
 
 export const SECTIONS = ["What happened", "Proposals", "Cleanup", "Noticed by me"];
 export const NOT_ASKED = "Not asked: headless run";
@@ -214,8 +220,8 @@ const cleanup = (nr) => {
   }
 };
 
-const verify = (nr) => {
-  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+/** Everything verify checks, as a list of problems. */
+const verifyProblems = (wt, nr) => {
   const root = mainRoot(wt) ?? wt;
   const trunk = trunkOf(root);
   const problems = [];
@@ -234,6 +240,12 @@ const verify = (nr) => {
     ]);
     problems.push(...checkScope(nr, [...changed]));
   }
+  return problems;
+};
+
+const verify = (nr) => {
+  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const problems = verifyProblems(wt, nr);
   if (problems.length > 0) {
     console.log(`verify: ${problems.length} problem(s)\n- ${problems.join("\n- ")}`);
     process.exit(1);
@@ -246,6 +258,30 @@ const verify = (nr) => {
   );
 };
 
+/** Pushes learn/{nr} and opens its pull request, once retro.md is committed and verified. */
+const publishLearn = (nr) => {
+  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const rPath = `specs/${nr}/retro.md`;
+  const problems = verifyProblems(wt, nr);
+  if (changedPaths(wt).length > 0) problems.push(`the worktree has uncommitted changes: commit ${rPath} first.`);
+  if (problems.length > 0) {
+    console.log(`publish: nothing pushed, the retro is not done:\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
+  const root = mainRoot(wt) ?? wt;
+  const count = items(sections(readText(join(wt, rPath)) ?? "").get("Proposals") ?? "").length;
+  const result = publish({
+    wt,
+    nr,
+    step: "learn",
+    branch: `learn/${nr}`,
+    trunk: trunkOf(root),
+    title: `Retro ${nr}: ${storyTitle(readText(join(wt, "specs/roadmap.md")), nr) ?? `story ${nr}`}`,
+    body: `Read ${rPath}: ${count} proposal(s), nothing applied. Merging is the approval; then /pipe:improve ${nr} asks which proposals to apply.`,
+  });
+  console.log(result.lines.join("\n"));
+};
+
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);
   const all = words(rest);
@@ -254,8 +290,9 @@ if (isMain(import.meta.url)) {
   else if (command === "start") start(nr);
   else if (command === "cleanup") cleanup(nr);
   else if (command === "verify") verify(nr);
+  else if (command === "publish") publishLearn(nr);
   else {
-    console.log("Usage: node learn.mjs start|cleanup|verify <nr>");
+    console.log("Usage: node learn.mjs start|cleanup|verify|publish <nr>");
     process.exit(64);
   }
 }

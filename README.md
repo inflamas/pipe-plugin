@@ -1,6 +1,6 @@
 # pipe
 
-A Claude Code plugin that gives a team a shared AI delivery pipeline in its own repository. It starts with two interviews: one decides the pipeline, the other sets up the repository. After that, every ticket runs through the same gated steps: spec, independent spec review, build, read-only code review, learn and improve. Agents do the work in git worktrees. A person decides every gate, and merging is the approval. Hooks enforce the rules, so the skills don't just describe them.
+A Claude Code plugin that gives a team a shared AI delivery pipeline in its own repository. It starts with two interviews: one decides the pipeline, the other sets up the repository. After that, every ticket runs through the same gated steps: spec, independent spec review, build, read-only code review, learn and improve. Agents do the work in git worktrees, and the review steps push their branch and open its pull request. A person decides every gate, and merging is the approval. Hooks enforce the rules, so the skills don't just describe them.
 
 The plugin is repository-neutral. It knows no stack and no product. It reads the check command and the guidelines from the repository, and it needs only `git` and Node.js.
 
@@ -17,6 +17,8 @@ From a local clone, use `/plugin marketplace add ./path/to/pipe-plugin` instead.
 
 Requirements: Claude Code, `git` (2.48 or later links worktrees with relative paths, and older versions work too), and Node.js 20 or later. The hook scripts run on Node, and so does the bundled headless Playwright server (`npx @playwright/mcp`). For screen checks the browser server needs Google Chrome: `npx playwright install chrome` installs it. Without it, screen checks are recorded as "Browser: not available" and the change goes to a person.
 
+For the pull requests: an `origin` remote and the GitHub CLI `gh`, logged in. Without them nothing fails: the skill prints the exact `git push` or `gh pr create` command for a person to run.
+
 ## The commands, in pipeline order
 
 | Command | When | What it does | Writes |
@@ -24,14 +26,14 @@ Requirements: Claude Code, `git` (2.48 or later links worktrees with relative pa
 | `/pipe:roadmap` | once, first, in an empty folder or a fresh repository | Moderates the team's pipeline brainstorm. It asks about the team (people, remote, deadline), shows the 14 building blocks, then takes each block to decide one at a time with options, costs and a recommendation. It proposes groups and writes the decisions down. | `pipeline.md`, `specs/roadmap.md`, `specs/roadmap-brainstorm.md` |
 | `/pipe:setup` | once, after the roadmap | Sets up the repository in question rounds: stack and why, modules and what each owns, UI rules, the domain rules nobody may guess, the check command, and the first tickets only if there is no roadmap. It writes only what the team answered and keeps an existing roadmap unchanged. It ends by running the check. | `AGENTS.md`, `specs/guidelines/architecture.md` (and `ui.md` if there is a screen), `specs/roadmap.md` if missing, `specs/setup.md`, `.gitignore` |
 | `/pipe:spec {nr}` | per story | Brainstorms the story with you (at most two rounds) and writes the draft spec on `spec/{nr}`. `--address-findings` answers a spec review. | `specs/{nr}/brainstorm.md`, `spec.md` |
-| `/pipe:review-spec {nr}` | after the spec | The read-only `pipe:spec-reviewer` agent checks form and domain rules in a fresh context. You answer each guess, and the record is committed. Never approves. | `specs/{nr}/spec-review.md` |
-| *you merge `spec/{nr}`* | | Merging approves the spec: it becomes the contract. | |
+| `/pipe:review-spec {nr}` | after the spec | The read-only `pipe:spec-reviewer` agent checks form and domain rules in a fresh context. You answer each guess, and the record is committed. Then it pushes `spec/{nr}` and opens its pull request. Never approves. | `specs/{nr}/spec-review.md` |
+| *you merge the pull request of `spec/{nr}`* | | Merging approves the spec: it becomes the contract. | |
 | `/pipe:dev {nr}` | after the spec merge | Implements the spec on `dev/{nr}`: tests first, then the code, then each screen check in a headless browser with screenshots. It ends ready for review, or blocked on a proposed spec revision. `--address-findings` reworks a review. | code, `specs/{nr}/progress.md`, `evidence/` |
-| `/pipe:review-dev {nr}` | after dev | The read-only `pipe:dev-reviewer` agent reviews the diff, runs the check and looks in the browser. Its report becomes `review.md` word for word, with the verdict `approve`, `rework` or `human`. | `specs/{nr}/review.md` |
-| *you merge `dev/{nr}`* | | Merging approves the implementation. | |
-| `/pipe:learn {nr}` | after every dev merge | The retro: one proposal per lesson, with step, change and evidence. It asks what you noticed and removes merged worktrees. Applies nothing. | `specs/{nr}/retro.md` on `learn/{nr}` |
-| *you merge `learn/{nr}`* | | | |
-| `/pipe:improve {nr}` | after the learn merge | Asks you about each proposal and applies only what you decide. Proposals for the plugin itself are written down for its maintainers. | `specs/{nr}/improve.md` and the accepted changes, on `improve/{nr}` |
+| `/pipe:review-dev {nr}` | after dev | The read-only `pipe:dev-reviewer` agent reviews the diff, runs the check and looks in the browser. Its report becomes `review.md` word for word, with the verdict `approve`, `rework` or `human`. On `approve` or `human` it pushes `dev/{nr}` and opens its pull request; on `rework` it pushes nothing. | `specs/{nr}/review.md` |
+| *you merge the pull request of `dev/{nr}`* | | Merging approves the implementation. | |
+| `/pipe:learn {nr}` | after every dev merge | The retro: one proposal per lesson, with step, change and evidence. It asks what you noticed and removes merged worktrees. Applies nothing. Pushes `learn/{nr}` and opens its pull request. | `specs/{nr}/retro.md` on `learn/{nr}` |
+| *you merge the pull request of `learn/{nr}`* | | | |
+| `/pipe:improve {nr}` | after the learn merge | Asks you about each proposal and applies only what you decide. Proposals for the plugin itself are written down for its maintainers. Pushes `improve/{nr}` and opens its pull request. | `specs/{nr}/improve.md` and the accepted changes, on `improve/{nr}` |
 
 Story numbers are two digits (`01`) for a roadmap's own stories and three for the pipeline's example tickets (`101`).
 
@@ -51,7 +53,11 @@ Story numbers are two digits (`01`) for a roadmap's own stories and three for th
 
 ## The rules the plugin enforces
 
-- **Merging is the approval.** A person merges every spec, dev, learn and improve branch. Agents never merge and never push: a hook blocks `git merge`, `git push` and `gh pr merge`.
+- **Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval.** `/pipe:review-spec`, `/pipe:review-dev` (not on `rework`), `/pipe:learn` and `/pipe:improve` push as their last step, once their record is committed and verified. `/pipe:spec` and `/pipe:dev` never push: their review comes first. A later run on the same branch pushes again and reuses the open pull request. A hook allows exactly two commands:
+  - `git push -u origin {branch}` (or without `-u`), where `{branch}` is `spec/`, `dev/`, `learn/` or `improve/{nr}` and is the branch checked out where the command runs
+  - `gh pr create --head {branch} --base {trunk}`, for that same branch
+
+  It blocks `git merge`, `gh pr merge`, `gh pr review --approve`, a push to the trunk, of another story's branch, or to any remote but `origin`, a refspec with a colon, and `--force`, `--force-with-lease`, `-f`, `--delete`, `--mirror`, `--all`, `--tags` and every other push flag.
 - **The spec is written only on a `spec/` branch.** On the trunk it is the contract: a hook blocks every change to a `spec.md` elsewhere. A gap found while building goes under "## Proposed spec revision" in `progress.md`, the story is blocked, and the spec is revised on `spec/{nr}`.
 - **Dependencies** are declared only in the allowed manifests (hook). A new dependency always goes to a person in the review.
 - **Check before done:** on a `dev/` branch, a turn can't end while the check is red, unless `progress.md` says "State: blocked".
@@ -69,7 +75,7 @@ Story numbers are two digits (`01`) for a roadmap's own stories and three for th
 - **Records are checked word for word:** every question and answer in a brainstorm, review, setup or roadmap record must come from a logged AskUserQuestion call.
 - **Learn after every merge:** `/pipe:improve` asks, and a person decides.
 
-Each step appends an event line to `<git common dir>/pipe/events.jsonl`, with the fields `ticket`, `step`, `event` (`start`, `stop` or `denied`), `time`, `outcome`, `turns` and `cost_usd`. The metrics in `pipeline.md` are computed from these lines. That state lives in the git directory, so it is never committed.
+Each step appends an event line to `<git common dir>/pipe/events.jsonl`, with the fields `ticket`, `step`, `event` (`start`, `stop`, `denied`, or `push` with the pull request's URL as its outcome), `time`, `outcome`, `turns` and `cost_usd`. The metrics in `pipeline.md` are computed from these lines. That state lives in the git directory, so it is never committed.
 
 ## If you use a dev container
 

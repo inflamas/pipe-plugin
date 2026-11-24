@@ -340,7 +340,7 @@ ${BLOCKS.map(([n, name, mark]) => {
 
 ## Events
 
-One JSON line per event; events: start, end, stop, denied, limit.
+One JSON line per event; events: start, end, stop, denied, limit, push.
 
 ${JSON.stringify(Object.fromEntries(EVENT_FIELDS.map((f) => [f, null])))}
 `;

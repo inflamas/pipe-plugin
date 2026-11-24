@@ -59,7 +59,7 @@ What each block asks:
 
 ## 4. Fixed rules
 
-Write these down unchanged, as `start` printed them, in their blocks: a person merges every spec, dev and learn pull request, and merging is the approval; agents never merge and never push, the runner (code) pushes; the reviewer cannot edit; learn after every merge, improve asks, a person decides; the six metrics are lead time, human minutes per gate, review rounds and rework, first-run green, agent cost (estimate), stops and denied calls, all computed automatically from events. Don't ask about them.
+Write these down unchanged, as `start` printed them, in their blocks: a person merges every spec, dev and learn pull request, and merging is the approval; "Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval."; the reviewer cannot edit; learn after every merge, improve asks, a person decides; the six metrics are lead time, human minutes per gate, review rounds and rework, first-run green, agent cost (estimate), stops and denied calls, all computed automatically from events. Don't ask about them.
 
 ## 5. Groups
 
@@ -74,7 +74,7 @@ With fewer than four people, one person takes two pieces; people in the same pla
 
 ## 6. Write pipeline.md
 
-Under 120 lines, in the shape of [format.md](format.md): one section per block, numbered as in section 2, holding the decision word for word (`Decision: "{the answer}"`, or `Decision: "{your recommendation}" (revisit)`), or the fixed rule, or the setup line, or "Later."; then "## Groups" with the people the team named; then "## Events" with the event line every piece shares: one JSON line per event with ticket, step, event (start, end, stop, denied, limit), time, outcome, turns and cost_usd.
+Under 120 lines, in the shape of [format.md](format.md): one section per block, numbered as in section 2, holding the decision word for word (`Decision: "{the answer}"`, or `Decision: "{your recommendation}" (revisit)`), or the fixed rule, or the setup line, or "Later."; then "## Groups" with the people the team named; then "## Events" with the event line every piece shares: one JSON line per event with ticket, step, event (start, end, stop, denied, limit, push), time, outcome, turns and cost_usd.
 
 ## 7. Write specs/roadmap.md
 

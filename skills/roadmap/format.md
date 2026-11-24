@@ -32,7 +32,7 @@ Fixed: a person merges every spec, dev and learn pull request; merging is the ap
 
 ## 6. Build
 
-Fixed: agents never merge and never push; the runner (code) pushes. The build runs in its own worktree and ends only when the check is green.
+Fixed: Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. The build runs in its own worktree and ends only when the check is green.
 
 ## 7. Verification
 
@@ -76,7 +76,7 @@ Later.
 
 ## Events
 
-One JSON line per event, appended by every piece; events: start, end, stop, denied, limit.
+One JSON line per event, appended by every piece; events: start, end, stop, denied, limit, push.
 
 {"ticket":"101","step":"dev","event":"end","time":"2026-01-01T10:00:00Z","outcome":"green","turns":14,"cost_usd":0.62}
 ```

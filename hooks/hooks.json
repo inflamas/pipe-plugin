@@ -1,5 +1,5 @@
 {
-  "description": "The pipe pipeline's gates: the spec gate, no merge or push, the dependency rule, the read-only reviewers, the /pipe:spec and /pipe:review-spec loops, the AskUserQuestion log, and the check before a dev turn ends.",
+  "description": "The pipe pipeline's gates: the spec gate, no merge and a push only of the own story branch with its pull request, the dependency rule, the read-only reviewers, the /pipe:spec and /pipe:review-spec loops, the AskUserQuestion log, and the check before a dev turn ends.",
   "hooks": {
     "PreToolUse": [
       {

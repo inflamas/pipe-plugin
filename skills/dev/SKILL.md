@@ -10,7 +10,7 @@ allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/dev.mjs" *)
 
 You implement one story from its approved spec. Merging is the approval: `spec/{nr}` merged into the trunk makes `specs/{nr}/spec.md` the contract. You build exactly that, prove every acceptance check, and leave `dev/{nr}` for a person to review and merge.
 
-The script `${CLAUDE_SKILL_DIR}/scripts/dev.mjs` does the deterministic parts: the gate, the worktree, the mode, the implementation revision and the final check. The pipe plugin's hooks also apply: they block any change to a `spec.md` off a spec/ branch, any merge or push, a dependency declared outside the allowed manifests, and the end of your turn while the check is red (unless progress.md says "State: blocked"). Never work around a block. Fix what it names. If you can't, stop and say so.
+The script `${CLAUDE_SKILL_DIR}/scripts/dev.mjs` does the deterministic parts: the gate, the worktree, the mode, the implementation revision and the final check. The pipe plugin's hooks also apply: they block any change to a `spec.md` off a spec/ branch, any merge, any push but a story branch's own, a dependency declared outside the allowed manifests, and the end of your turn while the check is red (unless progress.md says "State: blocked"). Never work around a block. Fix what it names. If you can't, stop and say so.
 
 ## 1. Start: always first
 
@@ -131,7 +131,7 @@ Lines 2 and 3 appear only once section 4 has run. Status is `done` or `open`.
 
 ## 7. Limits
 
-- Never edit `spec.md`, on any branch. Never merge, never push: a person merges `dev/{nr}`, and that merge is the approval.
+- Never edit `spec.md`, on any branch. Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. /pipe:dev never pushes: its review comes first, and `/pipe:review-dev {nr}` pushes `dev/{nr}` and opens its pull request.
 - Work and commit only on `dev/{nr}`, in its worktree.
 
 ## 8. The last line

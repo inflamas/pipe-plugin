@@ -8,6 +8,10 @@
 //     Run in the improve worktree before and after the commit. Every proposal has a decision, every
 //     decision was asked and answered word for word (AskUserQuestion log), and every file that
 //     changed is named by an applied decision. No spec.md and no other story's record changes.
+//   node improve.mjs publish <nr>
+//     The last step, once everything is committed and verify passes: pushes improve/{nr} to origin
+//     and opens its pull request (or reuses the open one). A person merges it. A push or gh that
+//     fails is one line with the command for a person; exit 0 either way.
 import { join } from "node:path";
 import {
   appendJsonl,
@@ -28,9 +32,11 @@ import {
   show,
   stateDir,
   stop,
+  storyTitle,
   trunkOf,
   words,
 } from "../../../lib/common.mjs";
+import { publish } from "../../../lib/publish.mjs";
 import { items, sections } from "../../learn/scripts/learn.mjs";
 import { verifyRecord } from "../../spec/scripts/spec.mjs";
 
@@ -105,8 +111,8 @@ const start = (nr) => {
   for (const p of proposals) console.log(p.text);
 };
 
-const verify = (nr) => {
-  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+/** Everything verify checks, as a list of problems. */
+const verifyProblems = (wt, nr) => {
   const root = mainRoot(wt) ?? wt;
   const trunk = trunkOf(root);
   const problems = [];
@@ -131,11 +137,40 @@ const verify = (nr) => {
       log: readAsks(wt).filter((e) => e.branch === `improve/${nr}`).map(askStrings),
     }),
   );
+  return problems;
+};
+
+const verify = (nr) => {
+  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const problems = verifyProblems(wt, nr);
   if (problems.length > 0) {
     console.log(`verify: ${problems.length} problem(s)\n- ${problems.join("\n- ")}`);
     process.exit(1);
   }
   console.log("verify: ok");
+};
+
+/** Pushes improve/{nr} and opens its pull request, once everything is committed and verified. */
+const publishImprove = (nr) => {
+  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const rPath = `specs/${nr}/improve.md`;
+  const problems = verifyProblems(wt, nr);
+  if (changedPaths(wt).length > 0) problems.push("the worktree has uncommitted changes: commit them first.");
+  else if (show(wt, "HEAD", rPath) === undefined) problems.push(`${rPath} is not committed yet.`);
+  if (problems.length > 0) {
+    console.log(`publish: nothing pushed, the improvement is not done:\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
+  const result = publish({
+    wt,
+    nr,
+    step: "improve",
+    branch: `improve/${nr}`,
+    trunk: trunkOf(mainRoot(wt) ?? wt),
+    title: `Improve ${nr}: ${storyTitle(readText(join(wt, "specs/roadmap.md")), nr) ?? `story ${nr}`}`,
+    body: `Read ${rPath}: each proposal of the retro with its decision, and the files it changed. Merging is the approval: it makes the accepted changes part of the pipeline.`,
+  });
+  console.log(result.lines.join("\n"));
 };
 
 if (isMain(import.meta.url)) {
@@ -145,8 +180,9 @@ if (isMain(import.meta.url)) {
   if (!nr) stop("Give one story number, e.g. /pipe:improve 01.");
   else if (command === "start") start(nr);
   else if (command === "verify") verify(nr);
+  else if (command === "publish") publishImprove(nr);
   else {
-    console.log("Usage: node improve.mjs start|verify <nr>");
+    console.log("Usage: node improve.mjs start|verify|publish <nr>");
     process.exit(64);
   }
 }

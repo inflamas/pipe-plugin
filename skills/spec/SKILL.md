@@ -124,7 +124,7 @@ If the repository's check formats Markdown, format both files the way it expects
 ## 5. Limits
 
 - No code, no other file. Commit only on `spec/{nr}`, in its worktree.
-- Never merge and never push: a person merges, and the merge is the approval.
+- Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. /pipe:spec never pushes: its review comes first, and `/pipe:review-spec {nr}` pushes `spec/{nr}` and opens its pull request.
 - A spec merged into the trunk is the contract. `start` stops there, unless the implementation proposes a revision.
 
 ## 6. Done

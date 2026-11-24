@@ -135,3 +135,75 @@ test("review-dev: only the reviewer's captured report becomes review.md", () => 
   assert.equal(r.status, 2);
   assert.match(r.stderr, /cannot change the repository/);
 });
+
+test("publish: the shell reads a published command back word for word, links point at the branch", async () => {
+  const { commandLine, fileLink, webUrlOf } = await import("../lib/publish.mjs");
+  const { shellSegments } = await import("../hooks/lib.mjs");
+  const argv = ["gh", "pr", "create", "--head", "dev/01", "--base", "main", "--title", "Dev 01: it's \"done\"", "--body", "a\nb $HOME `x` ; && |"];
+  assert.deepEqual(shellSegments(commandLine(argv)), [argv]);
+  assert.equal(webUrlOf("git@github.com:inflamas/pipe-plugin.git"), "https://github.com/inflamas/pipe-plugin");
+  assert.equal(webUrlOf("https://github.com/inflamas/pipe-plugin.git"), "https://github.com/inflamas/pipe-plugin");
+  assert.equal(webUrlOf("ssh://git@example.com:2222/team/app.git"), "https://example.com/team/app");
+  assert.equal(webUrlOf("/tmp/origin.git"), undefined);
+  assert.equal(fileLink("/tmp/origin.git", "dev/01", "specs/01/review.md"), "specs/01/review.md");
+  assert.equal(
+    fileLink("git@github.com:o/r.git", "dev/01", "specs/01/review.md"),
+    "[specs/01/review.md](https://github.com/o/r/blob/dev/01/specs/01/review.md)",
+  );
+});
+
+test("publish: a story branch goes to a bare origin; no gh means one line for a person", async () => {
+  const { publish } = await import("../lib/publish.mjs");
+  const wt = join(repo, ".worktrees/dev/01");
+  const specWt = join(repo, ".worktrees/spec/01");
+  const origin = realpathSync(mkdtempSync(join(tmpdir(), "pipe-origin-")));
+  after(() => rmSync(origin, { recursive: true, force: true }));
+  const before = process.env.PIPE_GH;
+  process.env.PIPE_GH = join(origin, "no-such-gh");
+  after(() => (before === undefined ? delete process.env.PIPE_GH : (process.env.PIPE_GH = before)));
+  const args = { wt, nr: "01", step: "review-dev", branch: "dev/01", trunk: "main", title: "Dev 01: Walking skeleton", body: "Merging is the approval." };
+
+  // No origin yet: nothing pushed, one line with the command.
+  let r = publish(args);
+  assert.equal(r.pushed, false);
+  assert.match(r.lines.join("\n"), /^push: not pushed \(this repository has no remote "origin"\)\. A person can run: cd \S+ && git push -u origin dev\/01$/);
+
+  sh(`git init -q --bare ${origin} && git remote add origin ${origin}`);
+  sh("git checkout -q -- specs/01/review.md 2>/dev/null; git add -A && git commit -qm review --allow-empty", wt);
+  r = publish(args);
+  assert.equal(r.pushed, true, r.lines.join("\n"));
+  const remoteTip = () => sh("git ls-remote origin refs/heads/dev/01", wt).stdout.split(/\s/)[0];
+  assert.equal(remoteTip(), sh("git rev-parse HEAD", wt).stdout.trim());
+  assert.equal(r.lines.length, 2);
+  assert.match(r.lines[1], /^pull request: not opened \(.*not installed\)\. A person can run: cd \S+ && gh pr create --head dev\/01 --base main --title 'Dev 01: Walking skeleton' --body 'Merging is the approval\.'$/);
+  assert.equal(sh("git rev-parse --abbrev-ref dev/01@{upstream}", wt).stdout.trim(), "origin/dev/01");
+  assert.equal(sh("git ls-remote origin refs/heads/main", wt).stdout, "", "the trunk is never pushed");
+
+  // A later run pushes again.
+  sh("git commit -qm again --allow-empty", wt);
+  r = publish(args);
+  assert.equal(r.pushed, true);
+  assert.equal(remoteTip(), sh("git rev-parse HEAD", wt).stdout.trim());
+
+  // Each push wrote a "push" event.
+  const events = readFileSync(join(repo, ".git/pipe/events.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
+  const pushes = events.filter((e) => e.event === "push");
+  assert.equal(pushes.length, 2);
+  assert.deepEqual([pushes[0].ticket, pushes[0].step, pushes[0].outcome], ["01", "review-dev", "pushed; no pull request"]);
+
+  // The hook, as a process: dev/01 may be pushed from its worktree, not from spec/01's.
+  const pushFrom = (cwd, command) => hook("hooks/no-merge.mjs", [], { tool_name: "Bash", tool_input: { command }, cwd }).status;
+  assert.equal(pushFrom(wt, "git push -u origin dev/01"), 0);
+  assert.equal(pushFrom(specWt, "git push -u origin dev/01"), 2);
+  assert.equal(pushFrom(specWt, "git push -u origin spec/01"), 0);
+  assert.equal(pushFrom(repo, "git push origin main"), 2);
+  assert.equal(pushFrom(wt, "gh pr create --head dev/01 --base main --title x --body y"), 0);
+  assert.equal(pushFrom(wt, "gh pr create --head dev/01 --base master --title x --body y"), 2);
+});
+
+test("publish: review-dev pushes nothing while the review is not done", () => {
+  const wt = join(repo, ".worktrees/dev/01");
+  const r = node("skills/review-dev/scripts/review-dev.mjs", ["publish", "01"], wt);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /^publish: nothing pushed, the review is not done/);
+});

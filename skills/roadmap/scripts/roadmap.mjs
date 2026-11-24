@@ -26,7 +26,7 @@ export const BLOCKS = [
   [3, "Isolation", "decide now", "what a run may read, write and reach, which secrets it gets; a worktree per ticket"],
   [4, "Context", "setup", "AGENTS.md, specs/guidelines/ and the check line, written by /pipe:setup"],
   [5, "Spec gate", "fixed", "/pipe:spec and /pipe:review-spec; a person merges the spec"],
-  [6, "Build", "fixed", "/pipe:dev in its own worktree; agents never merge or push"],
+  [6, "Build", "fixed", "/pipe:dev in its own worktree; agents never merge, a skill pushes only its own story branch"],
   [7, "Verification", "decide now", "the one check command and what it runs"],
   [8, "Independent review", "decide now", "/pipe:review-dev by a reviewer that cannot edit; what always goes to a person"],
   [9, "Merge gate", "decide now", "who reads and merges dev pull requests"],
@@ -40,7 +40,7 @@ export const BLOCKS = [
 /** The fixed blocks, written down unchanged. */
 export const FIXED = {
   5: "Fixed: a person merges every spec, dev and learn pull request; merging is the approval. The spec is written only on a spec/ branch.",
-  6: "Fixed: agents never merge and never push; the runner (code) pushes. The build runs in its own worktree and ends only when the check is green.",
+  6: "Fixed: Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. The build runs in its own worktree and ends only when the check is green.",
   12: "Fixed: learn after every merge; improve asks, a person decides.",
   13: "Fixed: six metrics: lead time, human minutes per gate, review rounds and rework, first-run green, agent cost (estimate), stops and denied calls, all computed automatically from events.",
 };
@@ -48,7 +48,7 @@ export const REVIEW_FIXED = "The reviewer cannot edit.";
 export const SETUP_LINE = "Setup: /pipe:setup writes AGENTS.md with the Check line, specs/guidelines/ and .gitignore.";
 export const LATER_LINE = "Later.";
 export const EVENT_FIELDS = ["ticket", "step", "event", "time", "outcome", "turns", "cost_usd"];
-export const EVENT_KINDS = "start, end, stop, denied, limit";
+export const EVENT_KINDS = "start, end, stop, denied, limit, push";
 export const GROUPS = [
   ["A", "Runner and limits"],
   ["B", "Runtime, trigger and isolation"],

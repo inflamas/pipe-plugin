@@ -1,6 +1,6 @@
 ---
 name: review-dev
-description: Review the implementation of one roadmap story on dev/{nr}, strictly, through the read-only pipe:dev-reviewer agent that never saw the code being written, and commit its verdict (approve, rework or human) as specs/{nr}/review.md. Never changes code. Use for /pipe:review-dev 01.
+description: Review the implementation of one roadmap story on dev/{nr}, strictly, through the read-only pipe:dev-reviewer agent that never saw the code being written, and commit its verdict (approve, rework or human) as specs/{nr}/review.md; on approve or human, push dev/{nr} and open its pull request. Never changes code. Use for /pipe:review-dev 01.
 argument-hint: "{nr}"
 disable-model-invocation: true
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/review-dev.mjs" *)
@@ -55,19 +55,28 @@ git add specs/{nr}/review.md
 git commit -m "Review {nr}: verdict {verdict} at {revision}"
 ```
 
-Then run `verify {nr}` once more: it must still print `verify: ok`. Never `git add` anything else, never amend another commit, never merge, never push.
+Then run `verify {nr}` once more: it must still print `verify: ok`. Never `git add` anything else, never amend another commit, never merge.
 
-## 4. Limits
+## 4. Push and open the pull request: the last step
+
+```bash
+node "${CLAUDE_SKILL_DIR}/scripts/review-dev.mjs" publish {nr}
+```
+
+It runs `verify` again and pushes nothing unless review.md is committed and passes. On "rework" it pushes nothing: the next step is `/pipe:dev {nr} --address-findings`. On "approve" or "human" it pushes `dev/{nr}` to origin and opens its pull request, titled "Dev {nr}: {story title}", whose body states the verdict and links review.md. When a pull request for `dev/{nr}` is already open (a later round), it pushes again and reuses it. If the push or `gh` fails (no remote, no login, no network), it prints one line with the exact command for a person to run and exits 0: relay that line, don't retry, and end the run normally.
+
+## 5. Limits
 
 - Never change code, tests, the spec, progress.md, evidence or any other file. Only review.md, written by `record`.
 - Commit only review.md, only on dev/{nr}, in its worktree.
+- Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. Push only through `publish`, only `dev/{nr}`, never on "rework".
 
-## 5. Done: your closing message
+## 6. Done: your closing message
 
-Done means review.md is committed on dev/{nr}, `verify` printed `ok` after the commit, and no code changed.
+Done means review.md is committed on dev/{nr}, `verify` printed `ok` after the commit, `publish` ran, and no code changed.
 
 Your closing message goes to the user. It holds these three parts, taken from review.md, and nothing else:
 
 1. **What changed**
 2. **Picture**, in a code block
-3. **Needs you:** the verdict and the revision, the Browser line, every rule that fires with its evidence, the findings in one line each, and the places to read line by line. Last, the review's commit hash, and what comes next: merge `dev/{nr}` to approve (then `/pipe:learn {nr}`), or `/pipe:dev {nr} --address-findings` for rework.
+3. **Needs you:** the verdict and the revision, the Browser line, every rule that fires with its evidence, the findings in one line each, and the places to read line by line. Last, the review's commit hash, the pull request's URL (or the command `publish` printed for a person, or that rework pushes nothing), and what comes next: merge the pull request of `dev/{nr}` to approve (then `/pipe:learn {nr}`), or `/pipe:dev {nr} --address-findings` for rework.

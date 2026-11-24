@@ -77,7 +77,7 @@ Only append; never change a recorded answer.
 
   - Every story gets its branches, each in its own git worktree at `.worktrees/{branch}` (gitignored), created from an up-to-date trunk: `spec/{nr}` for the brainstorm and the spec, `dev/{nr}` for the implementation and the review, `learn/{nr}` for the retro, `improve/{nr}` for what the team accepts from it. The main checkout stays on the trunk.
   - An agent works only inside the worktree of its branch.
-  - Agents never merge and never push; a person merges each branch after approving it. Merging is the approval: there is no approval file and no status line.
+  - Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. /pipe:review-spec, /pipe:review-dev (not on rework), /pipe:learn and /pipe:improve push their branch as their last step; /pipe:spec and /pipe:dev never push. There is no approval file and no status line.
   - If a story's branch or file already exists, continue on it; never recreate a branch or overwrite a record.
   - Everything a story's run produces lives in `specs/{nr}/` (brainstorm, spec, spec-review, progress, review, retro, improve, and `evidence/` for screenshots).
   - The spec is written and revised only on `spec/{nr}`. A spec on the trunk is the implementation contract: never modify, delete, rename or replace it on the trunk or on a dev branch.

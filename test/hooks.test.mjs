@@ -39,12 +39,80 @@ test("spec gate: shell commands that can change a spec.md or remove a specs fold
   assert.equal(b("python3 - <<'EOF'\nopen('specs/01/spec.md','w')\nEOF"), false);
 });
 
-test("no merge: git merge, git push and gh pr merge are blocked", () => {
-  assert.equal(decideNoMerge(bash("git merge dev/01")).allow, false);
-  assert.equal(decideNoMerge(bash("git -C /x push origin main")).allow, false);
-  assert.equal(decideNoMerge(bash("gh pr merge 3")).allow, false);
-  assert.equal(decideNoMerge(bash("git merge-base --is-ancestor a b")).allow, true);
-  assert.equal(decideNoMerge(bash("git worktree add .worktrees/dev/01 -b dev/01")).allow, true);
+// The worktree of dev/01 at /repo/.worktrees/dev/01, of spec/01 at /repo/.worktrees/spec/01, the
+// main checkout /repo on main.
+const onBranch = {
+  branchOf: (dir) => ({ "/repo": "main", "/repo/.worktrees/dev/01": "dev/01", "/repo/.worktrees/spec/01": "spec/01" })[dir] ?? "",
+  trunkOf: () => "main",
+};
+const push = (command, cwd = "/repo/.worktrees/dev/01") => decideNoMerge(bash(command, { cwd }), onBranch).allow;
+
+test("no merge: a skill pushes only its own story branch", () => {
+  assert.equal(push("git push -u origin dev/01"), true);
+  assert.equal(push("git push origin dev/01"), true);
+  assert.equal(push("git push --set-upstream origin dev/01"), true);
+  assert.equal(push("git push -u origin spec/01", "/repo/.worktrees/spec/01"), true);
+  assert.equal(push("git -C .worktrees/dev/01 push -u origin dev/01", "/repo"), true);
+  assert.equal(push("cd /repo/.worktrees/dev/01 && git push -u origin dev/01 2>&1"), true);
+  assert.equal(push("git status && git push -u origin dev/01 && echo done"), true);
+
+  assert.equal(push("git push -u origin spec/01"), false, "another story branch from this worktree");
+  assert.equal(push("git push -u origin dev/02"), false, "another story's branch");
+  assert.equal(push("git push origin main", "/repo"), false, "the trunk");
+  assert.equal(push("git push origin main"), false, "the trunk from a story worktree");
+  assert.equal(push("git push"), false, "no remote and branch named");
+  assert.equal(push("git push origin"), false, "no branch named");
+  assert.equal(push("git push --force origin dev/01"), false);
+  assert.equal(push("git push --force-with-lease origin dev/01"), false);
+  assert.equal(push("git push -f origin dev/01"), false);
+  assert.equal(push("git push -uf origin dev/01"), false);
+  assert.equal(push("git push origin +dev/01"), false);
+  assert.equal(push("git push --delete origin dev/01"), false);
+  assert.equal(push("git push origin --delete dev/01"), false);
+  assert.equal(push("git push --mirror origin"), false);
+  assert.equal(push("git push --all origin"), false);
+  assert.equal(push("git push --tags origin"), false);
+  assert.equal(push("git push origin dev/01 --tags"), false);
+  assert.equal(push("git push origin dev/01:main"), false, "a refspec with a colon");
+  assert.equal(push("git push origin HEAD:dev/01"), false, "a refspec with a colon");
+  assert.equal(push("git push upstream dev/01"), false, "a remote other than origin");
+  assert.equal(push("git push git@github.com:x/y.git dev/01"), false, "a URL as the remote");
+  assert.equal(push("git push origin dev/01 dev/02"), false, "two branches");
+  assert.equal(push("git -c remote.origin.url=x push origin dev/01"), false, "a git global option");
+  assert.equal(push("git push -u origin dev/01", "/repo"), false, "from the main checkout");
+  assert.equal(push("sh -c 'git push -u origin dev/01'"), false, "inside sh -c");
+  assert.equal(push("echo `git push -u origin main`"), false, "inside backticks");
+  assert.equal(push("sh <<'EOF'\ngit push origin main\nEOF"), false, "in a heredoc fed to a shell");
+});
+
+test("no merge: a pull request only for its own branch against the trunk", () => {
+  assert.equal(push("gh pr create --head dev/01 --base main --title 'Dev 01: x' --body 'Merging is the approval.'"), true);
+  assert.equal(push("gh pr create --head=dev/01 --base=main --fill"), true);
+  assert.equal(push("gh pr create -H dev/01 -B main --title \"Dev 01: it's done\" --body x"), true);
+  assert.equal(push("gh pr view dev/01 --json url,state"), true);
+  assert.equal(push("gh pr review 3 --comment -b 'looks fine'"), true);
+
+  assert.equal(push("gh pr create --base main --title x --body y"), false, "no --head");
+  assert.equal(push("gh pr create --head dev/02 --base main"), false, "another branch");
+  assert.equal(push("gh pr create --head spec/01 --base main"), false, "another story branch from this worktree");
+  assert.equal(push("gh pr create --head dev/01 --base spec/01"), false, "another base");
+  assert.equal(push("gh pr create --head dev/01"), false, "no --base");
+  assert.equal(push("gh pr create --head main --base main", "/repo"), false, "from the main checkout");
+  assert.equal(push("gh pr create --head dev/01 --base main --repo other/repo"), false, "another repository");
+  assert.equal(push("gh pr merge 3"), false);
+  assert.equal(push("gh pr merge --squash dev/01"), false);
+  assert.equal(push("gh pr review 3 --approve"), false);
+  assert.equal(push("gh pr review 3 -a"), false);
+});
+
+test("no merge: git merge stays blocked, the rest is allowed", () => {
+  assert.equal(decideNoMerge(bash("git merge dev/01"), onBranch).allow, false);
+  assert.equal(push("git merge main"), false);
+  assert.equal(push("git -C /x merge dev/01", "/repo"), false);
+  assert.equal(push("git status; git merge --no-ff dev/01"), false);
+  assert.equal(decideNoMerge(bash("git merge-base --is-ancestor a b"), onBranch).allow, true);
+  assert.equal(decideNoMerge(bash("git worktree add .worktrees/dev/01 -b dev/01"), onBranch).allow, true);
+  assert.equal(decideNoMerge(bash('git commit -m "Allow git push of the own branch"'), onBranch).allow, true);
 });
 
 test("dependencies: only the allowed manifests declare dependencies", () => {

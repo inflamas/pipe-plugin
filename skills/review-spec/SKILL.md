@@ -1,6 +1,6 @@
 ---
 name: review-spec
-description: Review the draft spec of one roadmap story before the person's gate. The read-only pipe:spec-reviewer agent checks form and domain rules in a fresh context; then the user answers every domain item with AskUserQuestion, and specs/{nr}/spec-review.md is written and committed on spec/{nr}. Never approves or rejects. Use for /pipe:review-spec 01.
+description: Review the draft spec of one roadmap story before the person's gate. The read-only pipe:spec-reviewer agent checks form and domain rules in a fresh context; then the user answers every domain item with AskUserQuestion, and specs/{nr}/spec-review.md is written and committed on spec/{nr}, which is then pushed with its pull request open. Never approves or rejects. Use for /pipe:review-spec 01.
 argument-hint: "{nr}"
 disable-model-invocation: true
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/review-spec.mjs" *)
@@ -107,21 +107,33 @@ git add specs/{nr}/spec-review.md
 git commit -m "Spec review {nr}"
 ```
 
-## 6. Limits
+## 6. Push and open the pull request: the last step
+
+Only after the commit, from the worktree:
+
+```bash
+node "${CLAUDE_SKILL_DIR}/scripts/review-spec.mjs" publish {nr}
+```
+
+It runs `verify` again and pushes nothing unless the record is committed and passes. Then it pushes `spec/{nr}` to origin and opens its pull request, titled "Spec {nr}: {story title}", whose body says what to read and "Merging is the approval." When a pull request for `spec/{nr}` is already open (a later review of the same spec), it pushes again and reuses it. If the push or `gh` fails (no remote, no login, no network), it prints one line with the exact command for a person to run and exits 0: relay that line, don't retry, and end the run normally.
+
+## 7. Limits
 
 - Change neither `spec.md` nor `brainstorm.md`, and write no code.
 - Commit only `spec-review.md`, only on `spec/{nr}`, in its worktree.
-- Never merge and never push. Never approve or reject: merging is the user's approval, and "## Gate feedback" is the user's rejection.
+- Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. Push only through `publish`, only `spec/{nr}`. Never approve or reject: merging is the user's approval, and "## Gate feedback" is the user's rejection.
 
-## 7. Done
+## 8. Done
 
 Done means:
 
 - the user answered every question in the chat;
 - `verify` printed `ok` and `spec-review.md` is committed on `spec/{nr}`;
+- `publish` ran: `spec/{nr}` is pushed with its pull request open, or its line names the command for a person;
 - `spec.md` is unchanged.
 
-Then tell the user in two lines:
+Then tell the user in three lines:
 
 - the review's commit, and whether it ends with the findings line;
-- that the gate is theirs: merge `spec/{nr}` to approve, add "## Gate feedback" to reject, or run `/pipe:spec {nr} --address-findings`.
+- the pull request's URL, or the command `publish` printed for a person to run;
+- that the gate is theirs: merge the pull request of `spec/{nr}` to approve, add "## Gate feedback" to reject, or run `/pipe:spec {nr} --address-findings`.

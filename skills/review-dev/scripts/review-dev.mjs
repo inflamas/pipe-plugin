@@ -13,6 +13,11 @@
 //   node review-dev.mjs verify <nr>
 //     Run in the dev worktree before and after committing review.md. Exit 0 "verify: ok", exit 1
 //     with the problems.
+//   node review-dev.mjs publish <nr>
+//     The last step, once review.md is committed and verify passes. On "approve" or "human": pushes
+//     dev/{nr} to origin and opens its pull request (or reuses the open one); a person merges it. On
+//     "rework": pushes nothing. A push or gh that fails is one line with the command for a person;
+//     exit 0 either way.
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -27,13 +32,16 @@ import {
   readJsonl,
   readText,
   repoOrStop,
+  reviewRevision,
   sameRevision,
   sha256,
   stateDir,
   stop,
+  storyTitle,
   words,
   worktreePath,
 } from "../../../lib/common.mjs";
+import { fileLink, originOf, publish } from "../../../lib/publish.mjs";
 import { appLines, freePort } from "../../../lib/ports.mjs";
 import { implementationRevision, parseProgress } from "../../dev/scripts/dev.mjs";
 import { canon } from "../../review-spec/scripts/review-spec.mjs";
@@ -292,8 +300,8 @@ const record = (nr) => {
   console.log(`record: specs/${nr}/review.md written from the reviewer's report`);
 };
 
-const verify = (nr) => {
-  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+/** Everything verify checks, as a list of problems. */
+const verifyProblems = (wt, nr) => {
   const problems = [];
   if (gitOut(wt, "branch", "--show-current") !== `dev/${nr}`) problems.push(`Run verify inside .worktrees/dev/${nr}, on dev/${nr}.`);
   const reviewPath = `specs/${nr}/review.md`;
@@ -315,6 +323,13 @@ const verify = (nr) => {
       problems.push(`${reviewPath} is not the ${REVIEWER} agent's report word for word: run "record ${nr}" again.`);
     problems.push(...checkReview({ review, ...factsFor(wt, nr, loaded.start.round) }));
   }
+  return problems;
+};
+
+const verify = (nr) => {
+  const wt = gitOut(process.cwd(), "rev-parse", "--show-toplevel") ?? process.cwd();
+  const reviewPath = `specs/${nr}/review.md`;
+  const problems = verifyProblems(wt, nr);
   if (problems.length > 0) {
     console.log(`verify: ${problems.length} problem(s)\n- ${problems.join("\n- ")}`);
     process.exit(1);
@@ -323,17 +338,56 @@ const verify = (nr) => {
   console.log(dirty ? "verify: ok (review.md not committed yet)" : `verify: ok (review.md committed at ${gitOut(wt, "log", "-1", "--format=%h", "--", reviewPath)})`);
 };
 
+/** The verdict on line 1 of a review: approve, rework or human. */
+export const verdictOf = (review) => (review ?? "").match(/^Verdict: (approve|rework|human)\b/)?.[1];
+
+/** On approve or human, pushes dev/{nr} and opens its pull request, once review.md is committed. */
+const publishDev = (nr) => {
+  const { root, trunk } = repoOrStop(process.cwd());
+  const wt = worktreeOrStop(root, nr);
+  const reviewPath = `specs/${nr}/review.md`;
+  const problems = verifyProblems(wt, nr);
+  if ((gitOut(wt, "status", "--porcelain", "--", reviewPath) ?? "") !== "") problems.push(`${reviewPath} is not committed yet.`);
+  if (problems.length > 0) {
+    console.log(`publish: nothing pushed, the review is not done:\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
+  const review = readText(join(wt, reviewPath)) ?? "";
+  const verdict = verdictOf(review);
+  const revision = reviewRevision(review);
+  if (verdict === "rework") {
+    console.log(`publish: verdict rework: nothing pushed. Next: /pipe:dev ${nr} --address-findings.`);
+    return;
+  }
+  const branch = `dev/${nr}`;
+  const result = publish({
+    wt,
+    nr,
+    step: "review-dev",
+    branch,
+    trunk,
+    title: `Dev ${nr}: ${storyTitle(readText(join(wt, "specs/roadmap.md")), nr) ?? `story ${nr}`}`,
+    body: [
+      `Verdict: ${verdict} at ${revision}.`,
+      `Review: ${fileLink(originOf(wt), branch, reviewPath)}${verdict === "human" ? ": it names what needs a person" : ""}.`,
+      `Merging is the approval; then run /pipe:learn ${nr}.`,
+    ].join(" "),
+  });
+  console.log(result.lines.join("\n"));
+};
+
 if (isMain(import.meta.url)) {
   const [command, ...rest] = process.argv.slice(2);
   const all = words(rest);
   const nr = all.length === 1 ? parseNr(all[0]) : undefined;
-  if (!nr || !["start", "findings", "record", "verify"].includes(command)) {
-    console.log("Usage: node review-dev.mjs start|findings|record|verify {nr}, e.g. start 01.");
+  if (!nr || !["start", "findings", "record", "verify", "publish"].includes(command)) {
+    console.log("Usage: node review-dev.mjs start|findings|record|verify|publish {nr}, e.g. start 01.");
     process.exit(64);
   }
   if (command === "start") await start(nr);
   else if (command === "findings") findings(nr);
   else if (command === "record") record(nr);
+  else if (command === "publish") publishDev(nr);
   else verify(nr);
 }
 
