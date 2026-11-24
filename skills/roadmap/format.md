@@ -5,12 +5,13 @@
 ```markdown
 # Pipeline
 
-Team: {n} people build it, {m} remote. It runs by {date}. Decided with /pipe:roadmap; every question and answer is in specs/roadmap-brainstorm.md.
+Decided with /pipe:roadmap; every question and answer is in specs/roadmap-brainstorm.md.
 
 ## 1. Intake
 
 Decision: "{the team's answer, word for word}"
 Decision: "{where the tickets come from, word for word}"
+Decision: "{which steps the pipeline runs and where it starts, word for word}"
 {one line: the chosen ticket type and why it scored best}
 
 Example tickets:
@@ -63,7 +64,7 @@ Decision: "{answer}"
 
 ## 12. Learn
 
-Fixed: learn after every merge; improve asks, a person decides.
+Fixed: learn after every merge, even when it finds no reusable lesson ("No reusable lesson" is a valid retro); improve asks, a person decides.
 
 ## 13. Measurement
 
@@ -128,7 +129,7 @@ One round per AskUserQuestion call, recorded right after its answer. Copy each q
 ````markdown
 # Pipeline brainstorm
 
-## Round 1: The team
+## Round 1: Block 1, intake
 
 ### Q1. {the question, exactly as asked}
 
@@ -141,7 +142,7 @@ Recommendation: {label 1}.
 
 Answer: "{the answer, word for word}"
 
-## Round 2: Block 1, intake
+## Round 2: Block 2, runtime and trigger
 
 …
 ````

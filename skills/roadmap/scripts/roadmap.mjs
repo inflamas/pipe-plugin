@@ -21,7 +21,7 @@ import {
 import { parseBrainstorm, verifyRecord } from "../../spec/scripts/spec.mjs";
 
 export const BLOCKS = [
-  [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, and three real example tickets"],
+  [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, which steps it runs for each, and three real example tickets"],
   [2, "Runtime and trigger", "decide now", "where a run executes, who starts it, whose account the agent signs in with"],
   [3, "Isolation", "decide now", "what a run may read, write and reach, which secrets it gets; a worktree per ticket"],
   [4, "Context", "setup", "AGENTS.md, specs/guidelines/ and the check line, written by /pipe:setup"],
@@ -41,7 +41,7 @@ export const BLOCKS = [
 export const FIXED = {
   5: "Fixed: a person merges every spec, dev and learn pull request; merging is the approval. The spec is written only on a spec/ branch.",
   6: "Fixed: Agents never merge. A skill pushes only its own story branch and opens its pull request; a person merges, and merging is the approval. The build runs in its own worktree and ends only when the check is green.",
-  12: "Fixed: learn after every merge; improve asks, a person decides.",
+  12: 'Fixed: learn after every merge, even when it finds no reusable lesson ("No reusable lesson" is a valid retro); improve asks, a person decides.',
   13: "Fixed: six metrics: lead time, human minutes per gate, review rounds and rework, first-run green, agent cost (estimate), stops and denied calls, all computed automatically from events.",
 };
 export const REVIEW_FIXED = "The reviewer cannot edit.";

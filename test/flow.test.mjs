@@ -262,7 +262,7 @@ test("roadmap: a roadmap without tickets, the example tickets under block 1 of p
               : 'Decision: "Laptop"';
   put(
     "pipeline.md",
-    `# Pipeline\n\nTeam: 2 people build it, 0 remote.\n\n${BLOCKS.map(([n, name, mark]) => `## ${n}. ${name}\n\n${body(n, mark)}\n`).join("\n")}
+    `# Pipeline\n\n${BLOCKS.map(([n, name, mark]) => `## ${n}. ${name}\n\n${body(n, mark)}\n`).join("\n")}
 ## Groups
 
 - **A Runner and limits** (blocks 2, 10): Ana
