@@ -24,6 +24,28 @@ export const prefixOf = (dir) => gitOut(existingDir(dir), "rev-parse", "--show-p
 /** The root of the worktree holding `dir`; "" outside git. */
 export const toplevelOf = (dir) => gitOut(existingDir(dir), "rev-parse", "--show-toplevel") ?? "";
 
+/**
+ * The command as the shell parses its operators: heredoc bodies dropped, and inside quotes the
+ * characters < > | ; & blanked (there they are text, never a redirect or a separator). The words
+ * themselves stay, so a quoted path is still seen.
+ */
+export const maskShell = (command) => {
+  const withoutBodies = [];
+  let end;
+  for (const line of command.split("\n")) {
+    if (end !== undefined) {
+      if (line.trim() === end) end = undefined;
+      continue;
+    }
+    withoutBodies.push(line);
+    const h = line.match(/<<-?\s*(['"]?)([A-Za-z_][\w]*)\1/);
+    if (h) end = h[2];
+  }
+  return withoutBodies
+    .join("\n")
+    .replace(/'[^']*'|"(?:[^"\\]|\\.)*"/g, (q) => q.replace(/[<>|;&]/g, " "));
+};
+
 /** The story a branch belongs to: "dev/01" → "01". */
 export const ticketOf = (branch) => branch.match(/^[a-z]+\/(\d+)$/)?.[1] ?? null;
 

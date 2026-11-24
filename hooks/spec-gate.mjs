@@ -5,20 +5,23 @@
 //   Write, Edit, MultiEdit, NotebookEdit whose file path ends in specs/{folder}/spec.md:
 //     allowed only when `git branch --show-current` in the file's nearest existing folder starts
 //     with "spec/"; blocked on the trunk, on dev/ branches, on a detached HEAD and outside git.
+//   Bash with a > or >> redirect whose target is a spec.md.
 //   Bash whose command names "spec.md" literally AND contains any of:
-//     a > or >> redirect (except to /dev/null or a >& fd duplication), tee, sed -i / --in-place,
+//     tee, sed -i / --in-place,
 //     perl -i, mv, cp, rm, truncate, git mv, git rm, git checkout ... --, git restore,
 //     or an inline python/node/bun/deno/ruby/perl script (-c, -e, --eval, -p, --print, or a heredoc).
 //     This is a co-occurrence check on the whole command, regardless of branch: `cat spec.md | tee x`
 //     is blocked too. Use Write/Edit on a spec/ branch instead.
 //   Bash that runs rm, mv, git rm or git mv on a folder under specs/ (a specs/... argument whose last
 //     segment has no file extension, ends in "/", or contains a * glob), and on specs itself.
+// The command is read as the shell parses it: a heredoc body and text inside quotes hold no redirect
+// (`git commit -m "a <b@c>"` and `cat >> brainstorm.md <<'EOF' ... spec.md ... EOF` are allowed).
 // Not covered: a spec.md reached without naming it (globs like sp*c.md, shell variables), scripts in
 // files, MCP tools, and anything a person does in their own terminal.
 // Allowed: reading (cat, grep, git diff, git log, ...), git add, git commit.
 import { dirname } from "node:path";
 import { isMain } from "../lib/common.mjs";
-import { allow, block, branchOf, FILE_TOOLS, runHook, targetPath } from "./lib.mjs";
+import { allow, block, branchOf, FILE_TOOLS, maskShell, runHook, targetPath } from "./lib.mjs";
 
 const WHY = "An approved spec changes only through a spec merge, and a person merges.";
 
@@ -30,13 +33,13 @@ const gitSub = (sub) => new RegExp(`\\bgit\\s+(?:-C\\s+\\S+\\s+)?${sub}(?![\\w-]
 const before = "(?:^|[\\s;&|(`])";
 const args = "(?:[^;&|\\n]*\\s)?";
 
-export const hasFileRedirect = (command) =>
-  Array.from(command.matchAll(/(?<![=\->])\d*>>?(?![&>])\s*([^\s;&|)]*)/g)).some(
-    (m) => m[1] !== "/dev/null",
-  );
+/** The targets of the > and >> redirects of a masked command (no /dev/null, no >& duplication). */
+export const redirectTargets = (masked) =>
+  Array.from(masked.matchAll(/(?<![=\->])\d*>>?(?![&>])\s*([^\s;&|)]*)/g))
+    .map((m) => m[1].replace(/^["']|["']$/g, ""))
+    .filter((t) => t !== "/dev/null");
 
 const MUTATORS = [
-  ["a > or >> redirect", hasFileRedirect],
   ["tee", (c) => word("tee").test(c)],
   ["sed -i", (c) => new RegExp(`${before}sed\\s${args}(?:-[a-zA-Z]*i|--in-place)`).test(c)],
   ["perl -i", (c) => new RegExp(`${before}perl\\s${args}-[a-zA-Z]*i`).test(c)],
@@ -89,10 +92,13 @@ export const decideSpecGate = (input, branch) => {
   }
   if (input.tool_name === "Bash") {
     const command = input.tool_input?.command ?? "";
-    if (removesSpecsFolder(command))
+    const masked = maskShell(command);
+    if (redirectTargets(masked).some((t) => /(?:^|\/)spec\.md$/.test(t)))
+      return block(`Blocked: this command redirects into a spec.md. ${WHY}`);
+    if (removesSpecsFolder(masked))
       return block(`Blocked: this command removes or moves a folder under specs/. ${WHY}`);
     if (!NAMES_SPEC.test(command)) return allow;
-    const hit = MUTATORS.find(([, test]) => test(command));
+    const hit = MUTATORS.find(([name, test]) => test(name === "an inline script" ? command : masked));
     if (hit) return block(`Blocked: this command can change a spec.md (${hit[0]}). ${WHY}`);
   }
   return allow;

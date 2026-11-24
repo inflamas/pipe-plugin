@@ -58,7 +58,7 @@ Run each round like this:
 1. **Ask one round:** one AskUserQuestion call, 1 to 4 questions. Each question names the story ("Story 02 …") and stands on its own. Each has 2 to 4 options. The one you recommend comes first, with "(Recommended)" at the end of its label.
 2. **If a screen changes,** draw it as an ASCII wireframe in the `preview` of the layout question's options. The user corrects it in their answer. If they correct it, show the corrected version in round 2 and record the version they accepted.
 3. **Wait for the answer.** Never answer for the user, never guess ahead, never ask in plain chat text instead.
-4. **Record the round:** append it to `specs/{nr}/brainstorm.md` in the format of [format.md](format.md). Record every question and its options exactly as asked, your recommendation, and the answer word for word. Only append. `verify` compares the record with the logged AskUserQuestion call.
+4. **Record the round:** append it to `specs/{nr}/brainstorm.md` in the format of [format.md](format.md). Record every question and its options exactly as asked, your recommendation, and the answer word for word. Only append, with the Edit or Write tool, not a shell redirect. `verify` compares the record with the logged AskUserQuestion call.
 5. **Then ask the next round.** At most two rounds in total; the story is small. When nothing is left open, go to `spec`.
 
 ### `spec`

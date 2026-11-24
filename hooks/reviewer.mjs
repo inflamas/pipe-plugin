@@ -28,7 +28,7 @@ import {
   sha256,
   stateDir,
 } from "../lib/common.mjs";
-import { allow, block, FILE_TOOLS, runHook } from "./lib.mjs";
+import { allow, block, FILE_TOOLS, maskShell, runHook } from "./lib.mjs";
 
 export const reviewerKind = (agentType) => {
   const m = (agentType ?? "").match(/(?:^|:)(spec|dev)-reviewer$/);
@@ -83,6 +83,7 @@ const WRITERS = new Set(["rm", "mv", "cp", "touch", "mkdir", "truncate", "ln", "
 
 /** Why a reviewer's Bash command could change the repository; undefined when it cannot. */
 export const reviewerBashProblem = (command, cwd, roots) => {
+  command = maskShell(command);
   for (const m of command.matchAll(/(?<![=\->])\d*>>?(?![&>])\s*("[^"]*"|'[^']*'|[^\s;&|)]+)/g)) {
     const target = m[1].replace(/^["']|["']$/g, "");
     if (inside(target, cwd, roots)) return `a redirect into the repository (${target})`;

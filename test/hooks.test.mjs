@@ -28,6 +28,12 @@ test("spec gate: shell commands that can change a spec.md or remove a specs fold
   assert.equal(b("cat specs/01/spec.md"), true);
   assert.equal(b("git diff main -- specs/01/spec.md 2>/dev/null"), true);
   assert.equal(b("git add specs/01/spec.md && git commit -m 'Spec 01'"), true);
+  // Quotes and heredoc bodies hold no redirect.
+  assert.equal(b('git add specs/01/spec.md && git commit -m "Spec 01\n\nCo-Authored-By: A <a@example.com>"'), true);
+  assert.equal(b("cat >> specs/01/brainstorm.md <<'EOF'\n### Q1. Is spec.md > 1 page?\nEOF"), true);
+  assert.equal(b("cat > specs/01/spec.md <<'EOF'\nx\nEOF"), false);
+  assert.equal(b('echo x > "specs/01/spec.md"'), false);
+  assert.equal(b("python3 - <<'EOF'\nopen('specs/01/spec.md','w')\nEOF"), false);
 });
 
 test("no merge: git merge, git push and gh pr merge are blocked", () => {
