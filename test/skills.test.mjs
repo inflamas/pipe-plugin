@@ -6,7 +6,7 @@ import { checkImprove, proposalsOf } from "../skills/improve/scripts/improve.mjs
 import { checkRetro, cleanupPlan } from "../skills/learn/scripts/learn.mjs";
 import { BROWSER_RULE, checkReview, expectedVerdict, RULES } from "../skills/review-dev/scripts/review-dev.mjs";
 import { FORM_CHECKS, verifyFindings } from "../skills/review-spec/scripts/review-spec.mjs";
-import { BLOCKS, checkPipeline, checkRoadmap, EVENT_FIELDS, FIXED, LATER_LINE, REVIEW_FIXED, SETUP_LINE } from "../skills/roadmap/scripts/roadmap.mjs";
+import { BLOCKS, checkPipeline, checkRoadmap, EVENT_FIELDS, EXAMPLE_TICKETS, FIXED, LATER_LINE, REVIEW_FIXED, SETUP_LINE } from "../skills/roadmap/scripts/roadmap.mjs";
 import { checkSetup } from "../skills/setup/scripts/setup.mjs";
 import { decideMode, hasScreen, parseArgs, verifyRecord, verifySpec } from "../skills/spec/scripts/spec.mjs";
 
@@ -36,37 +36,17 @@ The pipeline.
 
 **Group:** A
 
-## Tickets for the pipeline
+## Epic 2: Measurement
 
-### Story 101: Health endpoint
+### Story 03: Events
 
-**Afterwards a person can** call /health.
-
-**On screen when done:** None.
-
-**Out of scope:** auth.
-
-**Group:** the pipeline
-
-### Story 102: Typo
-
-**Afterwards a person can** read the help.
+**Afterwards a person can** read one event line per step.
 
 **On screen when done:** None.
 
-**Out of scope:** more.
+**Out of scope:** charts.
 
-**Group:** the pipeline
-
-### Story 103: Version flag
-
-**Afterwards a person can** print the version.
-
-**On screen when done:** None.
-
-**Out of scope:** more.
-
-**Group:** the pipeline
+**Group:** D
 `;
 
 test("common: story numbers, roadmap stories under epics, AGENTS.md lines", () => {
@@ -75,8 +55,8 @@ test("common: story numbers, roadmap stories under epics, AGENTS.md lines", () =
   assert.equal(parseNr("1001"), undefined);
   assert.match(storyIn(ROADMAP, "01"), /^### Story 01: Walking skeleton/);
   assert.doesNotMatch(storyIn(ROADMAP, "01"), /Story 02/);
-  assert.doesNotMatch(storyIn(ROADMAP, "02"), /Tickets for the pipeline/);
-  assert.match(storyIn(ROADMAP, "103"), /Version flag/);
+  assert.doesNotMatch(storyIn(ROADMAP, "02"), /Epic 2/);
+  assert.match(storyIn(ROADMAP, "03"), /one event line per step/);
   assert.equal(storyIn(ROADMAP, "04"), undefined);
   const agents = "# X\n\nCheck: `npm run check`\nRun: npm run dev -- --port {port}\n- Check: not this one\n";
   assert.equal(agentsLine(agents, "Check"), "npm run check");
@@ -322,13 +302,16 @@ Answer: "Apply as written"
   assert.ok(checkImprove({ nr: "01", improve, proposals, changed: ["specs/01/spec.md"], log }).length > 0);
 });
 
-const PIPELINE = (decision = 'Decision: "Laptop"') => `# Pipeline
+const EXAMPLES = ["Fix the typo in the help text", "Add a --version flag", "Return 404 for an unknown id"];
+const EXAMPLE_LINES = `${EXAMPLE_TICKETS}\n\n${EXAMPLES.map((e) => `- "${e}"`).join("\n")}`;
+
+const PIPELINE = (decision = 'Decision: "Laptop"', examples = EXAMPLE_LINES) => `# Pipeline
 
 Team: 3.
 
 ${BLOCKS.map(([n, name, mark]) => {
   const body =
-    mark === "fixed" ? FIXED[n] : mark === "setup" ? SETUP_LINE : mark === "later" ? LATER_LINE : n === 8 ? `${decision}\n${REVIEW_FIXED}` : decision;
+    mark === "fixed" ? FIXED[n] : mark === "setup" ? SETUP_LINE : mark === "later" ? LATER_LINE : n === 8 ? `${decision}\n${REVIEW_FIXED}` : n === 1 ? `${decision}\n\n${examples}` : decision;
   return `## ${n}. ${name}\n\n${body}\n`;
 }).join("\n")}
 ## Groups
@@ -346,13 +329,23 @@ ${JSON.stringify(Object.fromEntries(EVENT_FIELDS.map((f) => [f, null])))}
 `;
 
 test("roadmap: pipeline.md and specs/roadmap.md", () => {
-  const record = `## Round 1\n\n### Q1. Block 2?\n\nOptions:\n\n- **Laptop (Recommended)**: x\n\nRecommendation: Laptop.\n\nAnswer: "Laptop"\n`;
+  const record =
+    `## Round 1\n\n### Q1. Block 2?\n\nOptions:\n\n- **Laptop (Recommended)**: x\n\nRecommendation: Laptop.\n\nAnswer: "Laptop"\n\n## Round 2: Block 1, example tickets\n\n` +
+    EXAMPLES.map((e, i) => `### Q${i + 1}. Block 1, example ticket ${i + 1}?\n\nOptions:\n\n- **A draft (Recommended)**: x\n\nRecommendation: A draft.\n\nAnswer: "${e}"\n`).join("\n");
   assert.deepEqual(checkPipeline(PIPELINE(), record), []);
   assert.ok(checkPipeline(PIPELINE('Decision: "GitHub Actions"'), record).length > 0);
   assert.deepEqual(checkPipeline(PIPELINE('Decision: "Laptop" (revisit)'), record), []);
   assert.ok(checkPipeline(PIPELINE().replace(FIXED[12], "Learn sometimes."), record).some((p) => /fixed rule/.test(p)));
+  // Block 1 lists the three example tickets, word for word from the record.
+  assert.ok(checkPipeline(PIPELINE(undefined, ""), record).some((p) => p.includes(EXAMPLE_TICKETS)));
+  assert.ok(checkPipeline(PIPELINE(undefined, EXAMPLE_LINES.split("\n").slice(0, -1).join("\n")), record).some((p) => /exactly three/.test(p)));
+  assert.ok(checkPipeline(PIPELINE(undefined, EXAMPLE_LINES.replace("typo", "spelling")), record).some((p) => /example ticket .* word for word/.test(p)));
   assert.deepEqual(checkRoadmap(ROADMAP), []);
-  assert.ok(checkRoadmap(ROADMAP.replace("### Story 102: Typo", "### Typo")).some((p) => /102/.test(p)));
+  // The roadmap holds only epics and their stories: never the tickets the pipeline implements.
+  const withTickets = `${ROADMAP}\n## Tickets for the pipeline\n\n### Story 101: Typo\n\n**Afterwards a person can** x.\n\n**On screen when done:** None.\n\n**Out of scope:** x.\n\n**Group:** the pipeline\n`;
+  assert.ok(checkRoadmap(withTickets).some((p) => /"## Tickets for the pipeline" is not an epic/.test(p)));
+  assert.deepEqual(checkRoadmap(`${ROADMAP}\n## Settled rules\n\n- Prices are in EUR.\n`), [], "the settled rules may stay");
+  assert.ok(checkRoadmap(ROADMAP.replace("## Epic 2: Measurement", "## Epic 2: Measurement\n\nnothing").replace("### Story 03: Events", "### Events")).some((p) => /Epic 2: Measurement" has no "### Story/.test(p)));
   assert.ok(checkRoadmap(ROADMAP.replace(": the walking skeleton", "").replace("Story 01: Walking skeleton", "Story 01: First run")).some((p) => /walking skeleton/.test(p)));
 });
 

@@ -207,3 +207,100 @@ test("publish: review-dev pushes nothing while the review is not done", () => {
   assert.equal(r.status, 1, r.stdout);
   assert.match(r.stdout, /^publish: nothing pushed, the review is not done/);
 });
+
+test("roadmap: a roadmap without tickets, the example tickets under block 1 of pipeline.md", async () => {
+  const { createHash } = await import("node:crypto");
+  const { BLOCKS, EVENT_FIELDS, EVENT_KINDS, EXAMPLE_TICKETS, FIXED, LATER_LINE, REVIEW_FIXED, SETUP_LINE } = await import(
+    "../skills/roadmap/scripts/roadmap.mjs"
+  );
+  const folder = realpathSync(mkdtempSync(join(tmpdir(), "pipe-roadmap-")));
+  const data = realpathSync(mkdtempSync(join(tmpdir(), "pipe-data-")));
+  after(() => [folder, data].forEach((d) => rmSync(d, { recursive: true, force: true })));
+  const put = (path, text) => {
+    mkdirSync(dirname(join(folder, path)), { recursive: true });
+    writeFileSync(join(folder, path), text);
+  };
+
+  // The AskUserQuestion log, as hooks/asks.mjs writes it for a folder that is not a repository yet.
+  const examples = ["Fix the typo in the --help text", "Add a --version flag", "Return 404 for an unknown id"];
+  const calls = [
+    [["Block 2, runtime and trigger: where does a run execute?", "Laptop"]],
+    examples.map((e, i) => [`Block 1, intake: example ticket ${i + 1}?`, e]),
+  ];
+  const log = calls.map((qs) => ({
+    branch: "",
+    cwd: folder,
+    tool_input: { questions: qs.map(([q]) => ({ question: q, options: [{ label: "A draft (Recommended)", description: "x" }] })) },
+    tool_response: { answers: Object.fromEntries(qs) },
+    at: new Date().toISOString(),
+  }));
+  const asks = join(data, "asks", `${createHash("sha256").update(folder).digest("hex").slice(0, 16)}.jsonl`);
+  mkdirSync(dirname(asks), { recursive: true });
+  writeFileSync(asks, log.map((e) => JSON.stringify(e)).join("\n") + "\n");
+
+  put(
+    "specs/roadmap-brainstorm.md",
+    `# Pipeline brainstorm\n\n${calls
+      .map(
+        (qs, r) =>
+          `## Round ${r + 1}: Block ${r === 0 ? 2 : 1}\n\n` +
+          qs.map(([q, a], i) => `### Q${i + 1}. ${q}\n\nOptions:\n\n- **A draft (Recommended)**: x\n\nRecommendation: A draft.\n\nAnswer: "${a}"\n`).join("\n"),
+      )
+      .join("\n")}`,
+  );
+  const body = (n, mark) =>
+    mark === "fixed"
+      ? FIXED[n]
+      : mark === "setup"
+        ? SETUP_LINE
+        : mark === "later"
+          ? LATER_LINE
+          : n === 1
+            ? `Decision: "Laptop"\n\n${EXAMPLE_TICKETS}\n\n${examples.map((e) => `- "${e}"`).join("\n")}`
+            : n === 8
+              ? `Decision: "Laptop"\n${REVIEW_FIXED}`
+              : 'Decision: "Laptop"';
+  put(
+    "pipeline.md",
+    `# Pipeline\n\nTeam: 2 people build it, 0 remote.\n\n${BLOCKS.map(([n, name, mark]) => `## ${n}. ${name}\n\n${body(n, mark)}\n`).join("\n")}
+## Groups
+
+- **A Runner and limits** (blocks 2, 10): Ana
+- **B Runtime, trigger and isolation** (blocks 2, 3): Ana
+- **C Gates, review and evals** (blocks 5, 7, 8, 9, 11): Ben
+- **D Measurement** (block 13): Ben
+
+## Events
+
+One JSON line per event; events: ${EVENT_KINDS}.
+
+${JSON.stringify(Object.fromEntries(EVENT_FIELDS.map((f) => [f, null])))}
+`,
+  );
+  const story = (nr, title, group) =>
+    `### Story ${nr}: ${title}\n\n**Afterwards a person can** run it${nr === "01" ? ": the walking skeleton" : ""}.\n\n**On screen when done:** None.\n\n**Out of scope:** more.\n\n**Group:** ${group}\n`;
+  const roadmap = `# Roadmap\n\nThe pipeline, built.\n\n## Epic 1: Runner and limits\n\n${story("01", "Walking skeleton", "A")}\n## Epic 2: Measurement\n\n${story("02", "Events", "D")}`;
+  put("specs/roadmap.md", roadmap);
+
+  const verify = () => node("skills/roadmap/scripts/roadmap.mjs", ["verify", "--data", data], folder);
+  let r = verify();
+  assert.equal(r.status, 0, r.stdout);
+  assert.match(r.stdout, /^verify: ok/);
+  const written = readFileSync(join(folder, "pipeline.md"), "utf8");
+  const intake = written.slice(written.indexOf("## 1. Intake"), written.indexOf("## 2. "));
+  for (const e of examples) assert.ok(intake.includes(`- "${e}"`), e);
+  assert.doesNotMatch(readFileSync(join(folder, "specs/roadmap.md"), "utf8"), /Tickets|Story 10\d/);
+
+  // A ticket in the roadmap fails verify.
+  put("specs/roadmap.md", `${roadmap}\n## Tickets for the pipeline\n\n${story("101", "Typo", "the pipeline")}`);
+  r = verify();
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /"## Tickets for the pipeline" is not an epic/);
+
+  // An example ticket that is not the team's answer word for word fails verify.
+  put("specs/roadmap.md", roadmap);
+  put("pipeline.md", written.replace('- "Add a --version flag"', '- "Add a version flag"'));
+  r = verify();
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /example ticket "Add a version flag" is not an answer/);
+});

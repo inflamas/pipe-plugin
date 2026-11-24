@@ -1,6 +1,6 @@
 ---
 name: roadmap
-description: Moderate a team's brainstorm of its AI pipeline, block by block, and write the decisions to pipeline.md and specs/roadmap.md (epics and one-hour stories, story 01 the walking skeleton, the team's three example tickets as stories 101 to 103). The team decides; the skill asks with AskUserQuestion, recommends and writes it down. Works in an empty folder or a fresh repository, before /pipe:setup. Use for /pipe:roadmap.
+description: Moderate a team's brainstorm of its AI pipeline, block by block, and write the decisions to pipeline.md and specs/roadmap.md (only the epics and one-hour stories that build the pipeline, story 01 the walking skeleton; the team's three example tickets go into pipeline.md under block 1). The team decides; the skill asks with AskUserQuestion, recommends and writes it down. Works in an empty folder or a fresh repository, before /pipe:setup. Use for /pipe:roadmap.
 disable-model-invocation: true
 allowed-tools: Bash(node "${CLAUDE_SKILL_DIR}/scripts/roadmap.mjs" *)
 ---
@@ -48,7 +48,7 @@ For each "decide now" block, in order:
 
 What each block asks:
 
-- **1 Intake.** First ask which ticket types the team gets (multiSelect; offer common types, and they name their own through "Other"). Then show a table in the chat scoring each named type on five criteria: small, boring, repeating, low risk, provable by a test (yes or no each, with one word why), and ask which type the pipeline takes first, recommending the best-scoring one. Then ask where those tickets come from and how they reach the pipeline: a person writes each one as a story into `specs/roadmap.md` by hand; the team's issue tracker (Jira, Linear, GitHub Issues, …) read through an MCP server or a script; or what the team names. Say in the question that `/pipe:spec` reads only `specs/roadmap.md` either way, so a tracker means building the step that turns its ticket into a story, and recommend writing stories by hand until the pipeline runs. Then ask for three real example tickets of the chosen type: they type them through "Other" (offer drafts as options only to show the shape). These become stories 101, 102 and 103.
+- **1 Intake.** First ask which ticket types the team gets (multiSelect; offer common types, and they name their own through "Other"). Then show a table in the chat scoring each named type on five criteria: small, boring, repeating, low risk, provable by a test (yes or no each, with one word why), and ask which type the pipeline takes first, recommending the best-scoring one. Then ask where those tickets come from and how they reach the pipeline: a person writes each one as a story into `specs/roadmap.md` by hand; the team's issue tracker (Jira, Linear, GitHub Issues, …) read through an MCP server or a script; or what the team names. Say in the question that `/pipe:spec` reads only `specs/roadmap.md` either way, so a tracker means building the step that turns its ticket into a story, and recommend writing stories by hand until the pipeline runs. Then ask for three real example tickets of the chosen type, in one call with one question per ticket: they type each through "Other" (offer drafts as options only to show the shape). They go into pipeline.md under block 1 as "Example tickets:", one line each, word for word. They are not stories: the roadmap never holds them.
 - **2 Runtime and trigger.** Where a run executes: the team's laptops, GitHub Actions, Kubernetes, or what the team names. For each option say who starts a run, whose account the agent signs in with (an org-owned API key, workload identity federation, Bedrock or Vertex; a person's own token only with that person's and the company's OK, because it is tied to their subscription), what it costs, and who watches it. Say in the question that today the pipeline is built and debugged locally either way: the choice is the target.
 - **3 Isolation.** What a run may read, write and reach on the network, and which secrets it gets. A worktree per ticket is the base (`.worktrees/{branch}`); ask whether a container or a dev container is wanted on top.
 - **7 Verification.** The one check command and what it runs (typecheck, lint, tests). It becomes the `Check:` line of AGENTS.md.
@@ -74,7 +74,7 @@ With fewer than four people, one person takes two pieces; people in the same pla
 
 ## 6. Write pipeline.md
 
-Under 120 lines, in the shape of [format.md](format.md): one section per block, numbered as in section 2, holding the decision word for word (`Decision: "{the answer}"`, or `Decision: "{your recommendation}" (revisit)`), or the fixed rule, or the setup line, or "Later."; then "## Groups" with the people the team named; then "## Events" with the event line every piece shares: one JSON line per event with ticket, step, event (start, end, stop, denied, limit, push), time, outcome, turns and cost_usd.
+Under 120 lines, in the shape of [format.md](format.md): one section per block, numbered as in section 2, holding the decision word for word (`Decision: "{the answer}"`, or `Decision: "{your recommendation}" (revisit)`), or the fixed rule, or the setup line, or "Later."; block 1 also holds "Example tickets:" with the three example tickets, one `- "{ticket}"` line each, word for word; then "## Groups" with the people the team named; then "## Events" with the event line every piece shares: one JSON line per event with ticket, step, event (start, end, stop, denied, limit, push), time, outcome, turns and cost_usd.
 
 ## 7. Write specs/roadmap.md
 
@@ -82,7 +82,7 @@ In the shape of [format.md](format.md):
 
 - `## Epic {n}: {name}` per group of blocks (one epic per group, A to D), and under each `### Story {nr}: {title}` with its four lines: **Afterwards a person can**, **On screen when done:** ("None." when nothing is on screen), **Out of scope:**, **Group:**. Each story is one slice its group finishes in about an hour.
 - **Story 01 is always the walking skeleton**, in epic 1: start, one headless dev run, the check, one event, a stop for the merge. The thinnest path through every decided block.
-- Then `## Tickets for the pipeline`: the three example tickets as `### Story 101`, `### Story 102` and `### Story 103`, in the same form, with `**Group:** the pipeline`, so the pipeline specs them like any story (`/pipe:spec 101`).
+- Nothing else: the roadmap holds only the stories that build the pipeline. The tickets the pipeline later implements come in through the intake decided in block 1, never through the roadmap.
 
 ## 8. Write specs/roadmap-brainstorm.md
 
@@ -94,7 +94,7 @@ Every question, its options, your recommendation and the answer, word for word, 
 node "${CLAUDE_SKILL_DIR}/scripts/roadmap.mjs" verify --data "${CLAUDE_PLUGIN_DATA}"
 ```
 
-It must print `verify: ok`: the record matches the logged calls word for word, pipeline.md has the fourteen sections in order with the decisions word for word, the fixed rules unchanged, the groups and the event line, and specs/roadmap.md has its epics, stories, story 01 and stories 101 to 103. Fix what it names.
+It must print `verify: ok`: the record matches the logged calls word for word, pipeline.md has the fourteen sections in order with the decisions word for word, the fixed rules unchanged, the groups and the event line, block 1 lists the three example tickets word for word, and specs/roadmap.md has its epics, their stories and story 01, and nothing but epics. Fix what it names.
 
 ## 10. Discuss
 

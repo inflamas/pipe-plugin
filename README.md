@@ -35,7 +35,7 @@ For the pull requests: an `origin` remote and the GitHub CLI `gh`, logged in. Wi
 | *you merge the pull request of `learn/{nr}`* | | | |
 | `/pipe:improve {nr}` | after the learn merge | Asks you about each proposal and applies only what you decide. Proposals for the plugin itself are written down for its maintainers. Pushes `improve/{nr}` and opens its pull request. | `specs/{nr}/improve.md` and the accepted changes, on `improve/{nr}` |
 
-Story numbers are two digits (`01`) for a roadmap's own stories and three for the pipeline's example tickets (`101`).
+The roadmap builds the pipeline: `specs/roadmap.md` holds only its epics and stories, story 01 the walking skeleton, numbered with two digits (`01`). The tickets the pipeline implements are not in it. They come in through the intake the team decided in `pipeline.md` (for example a Jira ticket or a label), and each ticket keeps its own id there. `/pipe:roadmap` writes three real example tickets under block 1 of `pipeline.md`, to show what the pipeline will take in.
 
 ## What the repository must provide
 

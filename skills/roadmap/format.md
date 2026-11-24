@@ -13,6 +13,12 @@ Decision: "{the team's answer, word for word}"
 Decision: "{where the tickets come from, word for word}"
 {one line: the chosen ticket type and why it scored best}
 
+Example tickets:
+
+- "{the first example ticket, word for word}"
+- "{the second example ticket, word for word}"
+- "{the third example ticket, word for word}"
+
 ## 2. Runtime and trigger
 
 Decision: "{answer}"
@@ -78,10 +84,12 @@ Later.
 
 One JSON line per event, appended by every piece; events: start, end, stop, denied, limit, push.
 
-{"ticket":"101","step":"dev","event":"end","time":"2026-01-01T10:00:00Z","outcome":"green","turns":14,"cost_usd":0.62}
+{"ticket":"01","step":"dev","event":"end","time":"2026-01-01T10:00:00Z","outcome":"green","turns":14,"cost_usd":0.62}
 ```
 
 The `Decision:` text is the answer exactly as the team gave it (the selected label, or the words they typed). A block that took the recommendation ends its line with `(revisit)`, and its text is the recommendation exactly as recorded.
+
+"Example tickets:" holds exactly three lines, each one example ticket exactly as the team typed it. They show what the pipeline will take in; they are not stories, and they never go into specs/roadmap.md.
 
 ## specs/roadmap.md
 
@@ -109,21 +117,9 @@ The `Decision:` text is the answer exactly as the team gave it (the selected lab
 ## Epic 2: Runtime, trigger and isolation
 
 …
-
-## Tickets for the pipeline
-
-### Story 101: {the first example ticket}
-
-**Afterwards a person can** …
-
-**On screen when done:** …
-
-**Out of scope:** …
-
-**Group:** the pipeline
 ```
 
-Story numbers are two digits (01, 02, …) for the pipeline's own stories and 101 to 103 for the example tickets; each appears once.
+The roadmap holds only the epics and the stories that build the pipeline: every `## ` heading is an epic (a `## Settled …` section of rules the team settled later may follow). Story numbers are two digits (01, 02, …), each appears once, and story 01 is the walking skeleton. The tickets the pipeline later implements are never in it: they come in through the intake decided in block 1 of pipeline.md, and each keeps its own id there.
 
 ## specs/roadmap-brainstorm.md
 

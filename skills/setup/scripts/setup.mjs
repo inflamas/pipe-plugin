@@ -67,8 +67,7 @@ export const checkSetup = ({ setup, agents, architecture, ui, roadmapBefore, roa
 };
 
 /** A roadmap setup wrote (no /pipe:roadmap before it): stories in the form /pipe:spec reads. */
-const checkRoadmapLight = (roadmap) =>
-  checkRoadmap(roadmap).filter((p) => !/Tickets for the pipeline|Story 10[123]|walking skeleton/.test(p));
+const checkRoadmapLight = (roadmap) => checkRoadmap(roadmap).filter((p) => !/walking skeleton/.test(p));
 
 const stateFile = (cwd) => join(stateDir(cwd) ?? ".", "setup", "log.jsonl");
 

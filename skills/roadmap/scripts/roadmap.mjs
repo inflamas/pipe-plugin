@@ -21,7 +21,7 @@ import {
 import { parseBrainstorm, verifyRecord } from "../../spec/scripts/spec.mjs";
 
 export const BLOCKS = [
-  [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, and three real examples"],
+  [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, and three real example tickets"],
   [2, "Runtime and trigger", "decide now", "where a run executes, who starts it, whose account the agent signs in with"],
   [3, "Isolation", "decide now", "what a run may read, write and reach, which secrets it gets; a worktree per ticket"],
   [4, "Context", "setup", "AGENTS.md, specs/guidelines/ and the check line, written by /pipe:setup"],
@@ -55,6 +55,24 @@ export const GROUPS = [
   ["C", "Gates, review and evals"],
   ["D", "Measurement"],
 ];
+/** Under block 1 of pipeline.md: the team's three example tickets, one "- \"…\"" line each. */
+export const EXAMPLE_TICKETS = "Example tickets:";
+
+/** The example ticket lines under "Example tickets:", without their quotes. */
+export const exampleTicketsIn = (body) => {
+  const all = body.split("\n");
+  const at = all.findIndex((l) => l.trim() === EXAMPLE_TICKETS);
+  if (at < 0) return undefined;
+  const out = [];
+  for (const line of all.slice(at + 1)) {
+    if (line.trim() === "" && out.length === 0) continue;
+    const m = line.match(/^- (.*)$/);
+    if (!m) break;
+    out.push(m[1].trim().replace(/^"(.*)"$/, "$1"));
+  }
+  return out;
+};
+
 export const STORY_FIELDS = ["**Afterwards a person can**", "**On screen when done:**", "**Out of scope:**", "**Group:**"];
 
 const headingOf = ([n, name]) => `## ${n}. ${name}`;
@@ -123,6 +141,18 @@ export const checkPipeline = (pipeline, brainstorm) => {
             `pipeline.md, ${key}: the decision "${d.text.slice(0, 60)}" is not ${d.revisit ? "a recommendation" : "an answer"} in specs/roadmap-brainstorm.md, word for word.`,
           );
       }
+      if (n === 1) {
+        const examples = exampleTicketsIn(body);
+        if (examples === undefined)
+          problems.push(`pipeline.md, ${key}: no "${EXAMPLE_TICKETS}" with the team's three example tickets, one '- "{ticket}"' line each.`);
+        else {
+          if (examples.length !== 3)
+            problems.push(`pipeline.md, ${key}: "${EXAMPLE_TICKETS}" lists ${examples.length} ticket(s): it lists exactly three.`);
+          for (const e of examples)
+            if (!answers.includes(normalize(e)))
+              problems.push(`pipeline.md, ${key}: the example ticket "${e.slice(0, 60)}" is not an answer in specs/roadmap-brainstorm.md, word for word.`);
+        }
+      }
       if (n === 8 && !normalize(body).includes(REVIEW_FIXED))
         problems.push(`pipeline.md, ${key}: write the fixed rule "${REVIEW_FIXED}"`);
     }
@@ -157,12 +187,13 @@ export const checkRoadmap = (roadmap) => {
   if (roadmap === undefined) return ["specs/roadmap.md does not exist."];
   const problems = [];
   if (!/^# Roadmap\b/.test(roadmap)) problems.push('specs/roadmap.md: line 1 is "# Roadmap".');
-  const ticketsAt = roadmap.search(/^## Tickets for the pipeline\s*$/m);
-  if (ticketsAt < 0) problems.push('specs/roadmap.md: missing "## Tickets for the pipeline".');
-  const epicsPart = ticketsAt < 0 ? roadmap : roadmap.slice(0, ticketsAt);
-  const ticketsPart = ticketsAt < 0 ? "" : roadmap.slice(ticketsAt);
-  if (!/^## Epic \d+: \S/m.test(epicsPart)) problems.push('specs/roadmap.md: no "## Epic {n}: {name}".');
-  for (const block of epicsPart.split(/^(?=## Epic \d+: )/m).filter((b) => b.startsWith("## Epic")))
+  if (!/^## Epic \d+: \S/m.test(roadmap)) problems.push('specs/roadmap.md: no "## Epic {n}: {name}".');
+  for (const h of roadmap.match(/^## .*$/gm) ?? [])
+    if (!/^## Epic \d+: \S/.test(h) && !/^## Settled/.test(h))
+      problems.push(
+        `specs/roadmap.md: "${h}" is not an epic. The roadmap holds only the epics and stories that build the pipeline; the tickets it implements come in through the intake (pipeline.md, block 1).`,
+      );
+  for (const block of roadmap.split(/^(?=## Epic \d+: )/m).filter((b) => b.startsWith("## Epic")))
     if (!/^### Story \d{2,3}: /m.test(block))
       problems.push(`specs/roadmap.md: "${block.split("\n")[0]}" has no "### Story {nr}: {title}".`);
   const stories = storiesOf(roadmap);
@@ -173,12 +204,9 @@ export const checkRoadmap = (roadmap) => {
     for (const f of STORY_FIELDS)
       if (!s.text.includes(f)) problems.push(`specs/roadmap.md, story ${s.nr}: no line starting with ${f}.`);
   }
-  const first = storiesOf(epicsPart)[0];
+  const first = stories[0];
   if (!first || first.nr !== "01") problems.push("specs/roadmap.md: the first story is Story 01.");
   else if (!/walking skeleton/i.test(first.text)) problems.push("specs/roadmap.md: Story 01 is the walking skeleton: say so.");
-  for (const nr of ["101", "102", "103"])
-    if (!storiesOf(ticketsPart).some((s) => s.nr === nr))
-      problems.push(`specs/roadmap.md: "## Tickets for the pipeline" has no "### Story ${nr}: ...".`);
   return problems;
 };
 
