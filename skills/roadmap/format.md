@@ -10,6 +10,7 @@ Team: {n} people build it, {m} remote. It runs by {date}. Decided with /pipe:roa
 ## 1. Intake
 
 Decision: "{the team's answer, word for word}"
+Decision: "{where the tickets come from, word for word}"
 {one line: the chosen ticket type and why it scored best}
 
 ## 2. Runtime and trigger

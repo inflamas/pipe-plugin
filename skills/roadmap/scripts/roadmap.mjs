@@ -21,7 +21,7 @@ import {
 import { parseBrainstorm, verifyRecord } from "../../spec/scripts/spec.mjs";
 
 export const BLOCKS = [
-  [1, "Intake", "decide now", "which tickets enter the pipeline, and three real examples"],
+  [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, and three real examples"],
   [2, "Runtime and trigger", "decide now", "where a run executes, who starts it, whose account the agent signs in with"],
   [3, "Isolation", "decide now", "what a run may read, write and reach, which secrets it gets; a worktree per ticket"],
   [4, "Context", "setup", "AGENTS.md, specs/guidelines/ and the check line, written by /pipe:setup"],
