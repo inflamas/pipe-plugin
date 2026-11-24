@@ -6,12 +6,11 @@
 //     allowed only when `git branch --show-current` in the file's nearest existing folder starts
 //     with "spec/"; blocked on the trunk, on dev/ branches, on a detached HEAD and outside git.
 //   Bash with a > or >> redirect whose target is a spec.md.
-//   Bash whose command names "spec.md" literally AND contains any of:
-//     tee, sed -i / --in-place,
-//     perl -i, mv, cp, rm, truncate, git mv, git rm, git checkout ... --, git restore,
-//     or an inline python/node/bun/deno/ruby/perl script (-c, -e, --eval, -p, --print, or a heredoc).
-//     This is a co-occurrence check on the whole command, regardless of branch: `cat spec.md | tee x`
-//     is blocked too. Use Write/Edit on a spec/ branch instead.
+//   Bash with a command segment (split at &&, ||, ;, | and newlines) that names "spec.md" literally
+//     AND runs tee, sed -i / --in-place, perl -i, mv, cp, rm, truncate, git mv, git rm,
+//     git checkout ... --, or git restore; and Bash that names "spec.md" anywhere AND runs an inline
+//     python/node/bun/deno/ruby/perl script (-c, -e, --eval, -p, --print, or a heredoc). This holds on
+//     every branch. Use Write/Edit on a spec/ branch instead.
 //   Bash that runs rm, mv, git rm or git mv on a folder under specs/ (a specs/... argument whose last
 //     segment has no file extension, ends in "/", or contains a * glob), and on specs itself.
 // The command is read as the shell parses it: a heredoc body and text inside quotes hold no redirect
@@ -98,7 +97,12 @@ export const decideSpecGate = (input, branch) => {
     if (removesSpecsFolder(masked))
       return block(`Blocked: this command removes or moves a folder under specs/. ${WHY}`);
     if (!NAMES_SPEC.test(command)) return allow;
-    const hit = MUTATORS.find(([name, test]) => test(name === "an inline script" ? command : masked));
+    // An inline script may name the spec anywhere in its body; every other mutator must name it in
+    // its own segment (`rm -f /tmp/x && git add specs/01/spec.md` changes no spec).
+    const segments = masked.split(/&&|\|\||[;|\n]/).filter((s) => NAMES_SPEC.test(s));
+    const hit = MUTATORS.find(([name, test]) =>
+      name === "an inline script" ? test(command) : segments.some((s) => test(s)),
+    );
     if (hit) return block(`Blocked: this command can change a spec.md (${hit[0]}). ${WHY}`);
   }
   return allow;

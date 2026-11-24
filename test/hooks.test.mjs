@@ -20,7 +20,10 @@ test("spec gate: spec.md is written only on a spec/ branch", () => {
 test("spec gate: shell commands that can change a spec.md or remove a specs folder", () => {
   const b = (c) => decideSpecGate(bash(c), () => "main").allow;
   assert.equal(b("sed -i s/a/b/ specs/01/spec.md"), false);
-  assert.equal(b("cat specs/01/spec.md | tee /tmp/x"), false);
+  assert.equal(b("cat /tmp/x | tee specs/01/spec.md"), false);
+  assert.equal(b("cat specs/01/spec.md | tee /tmp/x"), true);
+  assert.equal(b("rm -f /tmp/body.md && git add specs/01/spec.md && git commit -m x"), true);
+  assert.equal(b("cp /tmp/new.md specs/01/spec.md"), false);
   assert.equal(b("echo x > specs/01/spec.md"), false);
   assert.equal(b("git checkout main -- specs/01/spec.md"), false);
   assert.equal(b("rm -rf specs/01"), false);
