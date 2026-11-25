@@ -2,8 +2,8 @@
 // implementation revision and the check before "State: ready for review".
 //
 //   node dev.mjs start <nr> [--address-findings]
-//     Run first, from anywhere in the repository. Stops unless spec/{nr} is merged into the trunk and
-//     the trunk holds specs/{nr}/spec.md. Creates .worktrees/dev/{nr} on dev/{nr} from an up-to-date
+//     Run first, from anywhere in the repository. Stops unless the trunk holds specs/{nr}/spec.md and
+//     a local spec/{nr}, if one is left, holds no other version of it. Creates .worktrees/dev/{nr} on dev/{nr} from an up-to-date
 //     trunk when missing (then runs the Install line of AGENTS.md; never recreates either), and prints
 //     the mode, the check, how to start the app and the next step. Exit 0: go on. Exit 3: "STOP: ...".
 //   node dev.mjs revision <nr>
@@ -146,7 +146,7 @@ export const decideMode = (f) => {
 
   if (!f.specMerged)
     return {
-      stop: `spec/${nr} is not merged into ${trunk}, so specs/${nr}/spec.md is not approved. Merge spec/${nr} into ${trunk} to approve it, then run /pipe:dev ${nr}.`,
+      stop: `spec/${nr} holds a specs/${nr}/spec.md that ${trunk} does not, so that revision is not approved. Merge spec/${nr} into ${trunk} to approve it (or delete spec/${nr} to build the spec on ${trunk}), then run /pipe:dev ${nr}.`,
     };
 
   if (f.progress !== undefined && progress?.state === undefined)
@@ -272,7 +272,14 @@ const start = async (argv) => {
   const { root, trunk, agents, check } = repoOrStop(process.cwd());
   const sPath = `specs/${nr}/spec.md`;
   const specOnMain = show(root, trunk, sPath) !== undefined;
-  const specMerged = branchExists(root, `spec/${nr}`) && git(root, "merge-base", "--is-ancestor", `spec/${nr}`, trunk).ok;
+  // Approval is the spec on the trunk. spec/{nr} is usually deleted once merged, or squash-merged so
+  // it is no ancestor of the trunk: only a local spec/{nr} whose spec.md differs from the trunk's is
+  // a revision still waiting to be merged.
+  const specMerged =
+    specOnMain &&
+    (!branchExists(root, `spec/${nr}`) ||
+      git(root, "merge-base", "--is-ancestor", `spec/${nr}`, trunk).ok ||
+      show(root, `spec/${nr}`, sPath) === show(root, trunk, sPath));
   const branch = `dev/${nr}`;
 
   // The gate comes before any worktree: no approved spec, nothing is created.

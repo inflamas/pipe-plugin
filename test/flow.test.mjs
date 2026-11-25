@@ -306,3 +306,39 @@ ${JSON.stringify(Object.fromEntries(EVENT_FIELDS.map((f) => [f, null])))}
   assert.equal(r.status, 1);
   assert.match(r.stdout, /example ticket "Add a version flag" is not an answer/);
 });
+
+test("dev starts from the trunk: a spec merged into it is approved, whatever became of spec/{nr}", () => {
+  const dir = realpathSync(mkdtempSync(join(tmpdir(), "pipe-dev-")));
+  after(() => rmSync(dir, { recursive: true, force: true }));
+  const run = (cmd) => sh(cmd, dir);
+  const dev = (nr) => node("skills/dev/scripts/dev.mjs", ["start", nr], dir);
+  const put = (path, text) => {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  };
+  run("git init -q -b main && git config user.email t@example.com && git config user.name Test");
+  put(".gitignore", ".worktrees/\n");
+  put("AGENTS.md", "# Test\n\nCheck: true\n");
+  run("git add -A && git commit -qm init");
+
+  // spec/01 squash-merged and deleted: only main holds the spec.
+  put("specs/01/spec.md", "# Story 01\n");
+  run("git add -A && git commit -qm 'spec 01'");
+  let r = dev("01");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /branch: dev\/01 \(created from main\)/);
+  assert.match(r.stdout, /mode: build/);
+
+  // spec/02 left behind after a squash merge: same spec.md, not an ancestor of main.
+  run("git switch -qc spec/02 && mkdir -p specs/02 && echo '# Story 02' > specs/02/spec.md && git add -A && git commit -qm 'spec 02'");
+  run("git switch -q main && git merge -q --squash spec/02 && git commit -qm 'spec 02 (squash)'");
+  r = dev("02");
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+
+  // spec/03 carries a revision main does not have: not approved yet.
+  put("specs/03/spec.md", "# Story 03\n");
+  run("git add -A && git commit -qm 'spec 03' && git switch -qc spec/03 && echo more >> specs/03/spec.md && git commit -qam revise && git switch -q main");
+  r = dev("03");
+  assert.equal(r.status, 3);
+  assert.match(r.stdout, /spec\/03 holds a specs\/03\/spec.md that main does not/);
+});
