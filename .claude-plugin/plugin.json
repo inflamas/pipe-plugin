@@ -1,6 +1,6 @@
 {
   "name": "pipe",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "A shared AI delivery pipeline for any repository: roadmap and setup interviews, then spec, independent spec review, build, read-only code review and the learning loop, with git worktrees and hooks that keep every gate in a person's hands.",
   "author": { "name": "inflamas" },
   "homepage": "https://github.com/inflamas/pipe-plugin",

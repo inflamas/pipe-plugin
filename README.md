@@ -15,7 +15,7 @@ In Claude Code, from the repository you want to set up:
 
 From a local clone, use `/plugin marketplace add ./path/to/pipe-plugin` instead. Run `/reload-plugins` (or start a new session), then `/pipe:roadmap`.
 
-Requirements: Claude Code, `git` (2.48 or later links worktrees with relative paths, and older versions work too), and Node.js 20 or later. The hook scripts run on Node, and so does the bundled headless Playwright server (`npx @playwright/mcp`). For screen checks the browser server needs Google Chrome: `npx playwright install chrome` installs it. Without it, screen checks are recorded as "Browser: not available" and the change goes to a person.
+Requirements: Claude Code, `git` (2.48 or later links worktrees with relative paths, and older versions work too), and Node.js 20 or later. The hook scripts run on Node, started through `hooks/node.sh`: Claude Code runs hooks in a non-interactive shell that often lacks the PATH nvm, fnm, volta, asdf or mise set up, so the launcher also looks in their folders, Homebrew and the system ones. If it still finds none, set `PIPE_NODE` to the path of a Node.js 20+ binary (for example in the `env` of `~/.claude/settings.json`). The bundled headless Playwright server (`npx @playwright/mcp`) runs on Node too. For screen checks the browser server needs Google Chrome: `npx playwright install chrome` installs it. Without it, screen checks are recorded as "Browser: not available" and the change goes to a person.
 
 For the pull requests: an `origin` remote and the GitHub CLI `gh`, logged in. Without them nothing fails: the skill prints the exact `git push` or `gh pr create` command for a person to run.
 

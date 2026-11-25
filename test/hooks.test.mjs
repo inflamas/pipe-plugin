@@ -197,3 +197,29 @@ test("reviewer report: from its first Revision/Verdict line, fence dropped", () 
   assert.equal(reportOf("dev", "```markdown\nVerdict: human\nRevision: abc1234\n```"), "Verdict: human\nRevision: abc1234\n");
   assert.equal(reportOf("spec", "I cannot edit files."), undefined);
 });
+
+// ---------------------------------------------------------------- node launcher
+
+test("node.sh: every hook starts through it, and the gates fail closed when no Node.js is found", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { spawnSync } = await import("node:child_process");
+  const { fileURLToPath } = await import("node:url");
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const commands = JSON.parse(readFileSync(`${root}hooks/hooks.json`, "utf8"));
+  const all = Object.values(commands.hooks).flatMap((groups) => groups.flatMap((g) => g.hooks.map((h) => h.command)));
+  for (const c of all) assert.match(c, /^sh "\$\{CLAUDE_PLUGIN_ROOT\}\/hooks\/node\.sh" /, c);
+  const closed = all.filter((c) => c.includes("--fail-closed")).map((c) => c.match(/\/([\w-]+\.mjs)"(.*)$/).slice(1).join("").trim());
+  assert.deepEqual(closed.sort(), ["dependencies.mjs", "no-merge.mjs", "reviewer.mjs guard", "spec-gate.mjs"]);
+
+  const launch = (args, env) =>
+    spawnSync("/bin/sh", [`${root}hooks/node.sh`, ...args], { env, input: "{}", encoding: "utf8" });
+  const none = { HOME: "/nonexistent", PATH: "/nothing" };
+  let r = launch(["--fail-closed", `${root}hooks/spec-gate.mjs`], none);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /no Node\.js 20 or later found for the hook spec-gate\.mjs/);
+  r = launch([`${root}hooks/reviewer.mjs`, "capture"], none);
+  assert.equal(r.status, 1);
+  r = launch(["-e", "process.stdout.write('ran')"], { ...none, PIPE_NODE: process.execPath });
+  assert.equal(r.status, 0);
+  assert.equal(r.stdout, "ran");
+});

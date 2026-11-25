@@ -4,43 +4,43 @@
     "PreToolUse": [
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/spec-gate.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" --fail-closed \"${CLAUDE_PLUGIN_ROOT}/hooks/spec-gate.mjs\"" }]
       },
       {
         "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/no-merge.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" --fail-closed \"${CLAUDE_PLUGIN_ROOT}/hooks/no-merge.mjs\"" }]
       },
       {
         "matcher": "Write|Edit|MultiEdit|Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/dependencies.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" --fail-closed \"${CLAUDE_PLUGIN_ROOT}/hooks/dependencies.mjs\"" }]
       },
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/reviewer.mjs\" guard" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" --fail-closed \"${CLAUDE_PLUGIN_ROOT}/hooks/reviewer.mjs\" guard" }]
       },
       {
         "matcher": "AskUserQuestion|Write|Edit|MultiEdit|Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/spec/scripts/spec.mjs\" hook" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" \"${CLAUDE_PLUGIN_ROOT}/skills/spec/scripts/spec.mjs\" hook" }]
       },
       {
         "matcher": "AskUserQuestion|Write|Edit|MultiEdit|NotebookEdit|Bash",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/skills/review-spec/scripts/review-spec.mjs\" hook" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" \"${CLAUDE_PLUGIN_ROOT}/skills/review-spec/scripts/review-spec.mjs\" hook" }]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "AskUserQuestion",
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/asks.mjs\"" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/asks.mjs\"" }]
       }
     ],
     "SubagentStop": [
       {
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/reviewer.mjs\" capture" }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/reviewer.mjs\" capture" }]
       }
     ],
     "Stop": [
       {
-        "hooks": [{ "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/check-before-done.mjs\"", "timeout": 900 }]
+        "hooks": [{ "type": "command", "command": "sh \"${CLAUDE_PLUGIN_ROOT}/hooks/node.sh\" \"${CLAUDE_PLUGIN_ROOT}/hooks/check-before-done.mjs\"", "timeout": 900 }]
       }
     ]
   }
