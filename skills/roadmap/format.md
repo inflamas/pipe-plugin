@@ -12,6 +12,7 @@ Decided with /pipe:roadmap; every question and answer is in specs/roadmap-brains
 Decision: "{the team's answer, word for word}"
 Decision: "{where the tickets come from, word for word}"
 Decision: "{which steps the pipeline runs and where it starts, word for word}"
+Decision: "{today's baseline for one example ticket: lead time and people's minutes, word for word}"
 {one line: the chosen ticket type and why it scored best}
 
 Example tickets:
@@ -22,8 +23,10 @@ Example tickets:
 
 ## 2. Runtime and trigger
 
-Decision: "{answer}"
-Decision: "{a second answer of the same block, if it took several questions}"
+Decision: "{where a run executes, word for word}"
+Decision: "{the harness, word for word}"
+Decision: "{what else the runner needs installed, word for word}"
+Decision: "{the GitHub identity that pushes and opens pull requests, word for word}"
 
 ## 3. Isolation
 
@@ -52,7 +55,8 @@ The reviewer cannot edit.
 
 ## 9. Merge gate
 
-Decision: "{answer}"
+Decision: "{who merges, word for word}"
+Decision: "{how a person learns a pull request waits, word for word}"
 
 ## 10. Orchestrator and limits
 
@@ -68,6 +72,7 @@ Fixed: learn after every merge, even when it finds no reusable lesson ("No reusa
 
 ## 13. Measurement
 
+Decision: "{where the events are collected, word for word}"
 Fixed: six metrics: lead time, human minutes per gate, review rounds and rework, first-run green, agent cost (estimate), stops and denied calls, all computed automatically from events.
 
 ## 14. Production feedback
@@ -76,10 +81,10 @@ Later.
 
 ## Groups
 
-- **A Runner and limits** (blocks 2, 10): {people}
-- **B Runtime, trigger and isolation** (blocks 2, 3): {people}
+- **A Runner and limits** (block 2's runner, 10): {people}
+- **B Runtime, trigger and isolation** (block 2's target, trigger and account, 3): {people}
 - **C Gates, review and evals** (blocks 5, 7, 8, 9, 11): {people}
-- **D Measurement** (block 13): {people}
+- **D Measurement** (block 13: where the events are collected, the metrics, the event line): {people}
 
 ## Events
 

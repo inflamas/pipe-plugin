@@ -22,7 +22,7 @@ import { parseBrainstorm, verifyRecord } from "../../spec/scripts/spec.mjs";
 
 export const BLOCKS = [
   [1, "Intake", "decide now", "which tickets enter the pipeline, where they come from, which steps it runs for each, and three real example tickets"],
-  [2, "Runtime and trigger", "decide now", "where a run executes, who starts it, whose account the agent signs in with"],
+  [2, "Runtime and trigger", "decide now", "where a run executes, which harness and skills it runs with, who starts it, whose account the agent signs in with"],
   [3, "Isolation", "decide now", "what a run may read, write and reach, which secrets it gets; a worktree per ticket"],
   [4, "Context", "setup", "AGENTS.md, specs/guidelines/ and the check line, written by /pipe:setup"],
   [5, "Spec gate", "fixed", "/pipe:spec and /pipe:review-spec; a person merges the spec"],
@@ -33,7 +33,7 @@ export const BLOCKS = [
   [10, "Orchestrator and limits", "decide now", "turns, minutes, dollars and reviews per step and ticket; the stop switch"],
   [11, "Evals", "decide now", "for each reviewer, one case it must reject and one it must accept"],
   [12, "Learn", "fixed", "/pipe:learn after every merge, /pipe:improve asks, a person decides"],
-  [13, "Measurement", "fixed", "six metrics computed from the events"],
+  [13, "Measurement", "decide now", "where the events are collected; the six metrics computed from them are fixed"],
   [14, "Production feedback", "later", "what production tells the pipeline"],
 ];
 
@@ -119,7 +119,7 @@ export const checkPipeline = (pipeline, brainstorm) => {
     if (i < at) problems.push(`pipeline.md: "${headingOf(block)}" is out of order (1 to 14).`);
     at = i;
     const body = s.get(key) ?? "";
-    if (mark === "fixed" && !normalize(body).includes(normalize(FIXED[n])))
+    if (FIXED[n] !== undefined && !normalize(body).includes(normalize(FIXED[n])))
       problems.push(`pipeline.md, ${key}: write the fixed rule unchanged: "${FIXED[n]}"`);
     if (mark === "setup" && !normalize(body).includes(normalize(SETUP_LINE)))
       problems.push(`pipeline.md, ${key}: write "${SETUP_LINE}"`);
@@ -224,7 +224,8 @@ const start = (argv) => {
   console.log("\nThe fourteen blocks:");
   for (const [n, name, mark, what] of BLOCKS) console.log(`${String(n).padStart(2)}. ${name} [${mark}]: ${what}`);
   console.log("\nFixed texts, written unchanged:");
-  for (const [n, text] of Object.entries(FIXED)) console.log(`  ${n}: ${text}`);
+  for (const [n, text] of Object.entries(FIXED))
+    console.log(`  ${n}${BLOCKS[n - 1][2] === "decide now" ? " (with the team's decision)" : ""}: ${text}`);
   console.log(`  8 (with the team's decision): ${REVIEW_FIXED}`);
   console.log(`  4: ${SETUP_LINE}`);
   console.log(`  14: ${LATER_LINE}`);

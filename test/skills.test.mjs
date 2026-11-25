@@ -311,7 +311,7 @@ Team: 3.
 
 ${BLOCKS.map(([n, name, mark]) => {
   const body =
-    mark === "fixed" ? FIXED[n] : mark === "setup" ? SETUP_LINE : mark === "later" ? LATER_LINE : n === 8 ? `${decision}\n${REVIEW_FIXED}` : n === 1 ? `${decision}\n\n${examples}` : decision;
+    mark === "fixed" ? FIXED[n] : mark === "setup" ? SETUP_LINE : mark === "later" ? LATER_LINE : n === 8 ? `${decision}\n${REVIEW_FIXED}` : n === 1 ? `${decision}\n\n${examples}` : FIXED[n] ? `${decision}\n${FIXED[n]}` : decision;
   return `## ${n}. ${name}\n\n${body}\n`;
 }).join("\n")}
 ## Groups
@@ -336,6 +336,8 @@ test("roadmap: pipeline.md and specs/roadmap.md", () => {
   assert.ok(checkPipeline(PIPELINE('Decision: "GitHub Actions"'), record).length > 0);
   assert.deepEqual(checkPipeline(PIPELINE('Decision: "Laptop" (revisit)'), record), []);
   assert.ok(checkPipeline(PIPELINE().replace(FIXED[12], "Learn sometimes."), record).some((p) => /fixed rule/.test(p)));
+  // Block 13 is decided (where the events go) and keeps its fixed metrics.
+  assert.ok(checkPipeline(PIPELINE().replace(FIXED[13], "Some metrics."), record).some((p) => /13\. Measurement: write the fixed rule/.test(p)));
   // Block 1 lists the three example tickets, word for word from the record.
   assert.ok(checkPipeline(PIPELINE(undefined, ""), record).some((p) => p.includes(EXAMPLE_TICKETS)));
   assert.ok(checkPipeline(PIPELINE(undefined, EXAMPLE_LINES.split("\n").slice(0, -1).join("\n")), record).some((p) => /exactly three/.test(p)));

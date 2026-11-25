@@ -259,14 +259,16 @@ test("roadmap: a roadmap without tickets, the example tickets under block 1 of p
             ? `Decision: "Laptop"\n\n${EXAMPLE_TICKETS}\n\n${examples.map((e) => `- "${e}"`).join("\n")}`
             : n === 8
               ? `Decision: "Laptop"\n${REVIEW_FIXED}`
-              : 'Decision: "Laptop"';
+              : FIXED[n]
+                ? `Decision: "Laptop"\n${FIXED[n]}`
+                : 'Decision: "Laptop"';
   put(
     "pipeline.md",
     `# Pipeline\n\n${BLOCKS.map(([n, name, mark]) => `## ${n}. ${name}\n\n${body(n, mark)}\n`).join("\n")}
 ## Groups
 
-- **A Runner and limits** (blocks 2, 10): Ana
-- **B Runtime, trigger and isolation** (blocks 2, 3): Ana
+- **A Runner and limits** (block 2's runner, 10): Ana
+- **B Runtime, trigger and isolation** (block 2's target, trigger and account, 3): Ana
 - **C Gates, review and evals** (blocks 5, 7, 8, 9, 11): Ben
 - **D Measurement** (block 13): Ben
 
